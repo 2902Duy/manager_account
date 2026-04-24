@@ -3,7 +3,7 @@ const express = require('express');
 const cors = require('cors');
 const { createClient } = require('@supabase/supabase-js');
 
-require('dotenv').config({ path: '../.env' });
+require('dotenv').config();
 
 const app = express();
 const PORT = process.env.PORT || 8000;
@@ -28,15 +28,19 @@ const supabaseAuth = createClient(
 // Middleware
 // ─────────────────────────────────────────
 
+// Hỗ trợ nhiều origin cách nhau bởi dấu phẩy, và tự xóa dấu / cuối
 const allowedOrigins = [
   'http://localhost:5173',
   'http://localhost:5174',
-  process.env.CORS_ORIGIN,
+  ...(process.env.CORS_ORIGIN || '').split(',').map(o => o.trim().replace(/\/+$/, '')),
 ].filter(Boolean);
+
+console.log('✅ Allowed CORS origins:', allowedOrigins);
 
 app.use(cors({
   origin: (origin, cb) => {
     if (!origin || allowedOrigins.includes(origin)) return cb(null, true);
+    console.log('❌ CORS blocked origin:', origin);
     cb(new Error('Not allowed by CORS'));
   },
   credentials: true,
