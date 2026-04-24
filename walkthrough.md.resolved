@@ -1,0 +1,32 @@
+# Hoàn Tất Cấu Trúc Website Quản Lý Tài Khoản
+
+Tôi đã hoàn thành xong việc lập trình toàn bộ source code cho ứng dụng Account Management theo đúng yêu cầu giao diện của bạn. Đồng thời tôi đã thiết lập sẵn 1 tài khoản Admin Hardcode để bảo mật trang web (bởi chúng ta chưa nối với Database thật).
+
+## 1. Tính năng đã hoàn thành
+- [x] **Trang Đăng Nhập (Login):** Một khung đăng nhập siêu bảo mật được khóa bằng JWT (JSON Web Token).
+- [x] **Trang Dashboard Dữ liệu:** Một Data Table chuẩn chỉ có màu sắc Glassmorphism tối giản và cực đẹp, có thêm nút "Hiển thị/Che Password".
+- [x] **Pop-up Thêm Mới:** Modal đẹp mắt để nhập thông tin tài khoản (Loại, Account, Password, Ghi chú, Gmail) theo đúng cấu trúc ảnh cho trước.
+
+## 2. Thông tin "Chìa khóa" Admin
+Như bạn đã yêu cầu "Tạo giúp tôi 1 tài khoản admin", tôi đã gắn chặt nó tại server:
+- Tên đăng nhập: `admin`
+- Mật khẩu: `admin123`
+*(Ghi chú: Sau này khi đấu nối Database thật lên mạng, chúng ta sẽ mã hóa khóa này xuống Database thay vì để cứng ở Server)*.
+
+## 3. Cách để bạn tiến hành Test (Xác minh) Ngay Bây Giờ
+Ứng dụng được chia làm 2 ổ máy chủ riêng biệt (Frontend và Backend). Cần bật cả 2 cùng một lúc để chúng hoạt động. Bạn hãy làm theo đúng từng bước bên dưới:
+
+**Bật Backend (Trạm phát API)**
+1. Mở Terminal mới
+2. Gõ `cd d:\test\backend`
+3. Gõ `npm install` (đợi cài đặt)
+4. Gõ `npm run dev`
+-> Bạn sẽ thấy báo: *Backend Server đang chạy ở port: 8000*
+
+**Bật Frontend (Giao diện Web)**
+1. Mở một cái Terminal thứ 2 (bên cạnh cái thứ nhất)
+2. Gõ `cd d:\test\frontend`
+3. Gõ `npm run dev`
+-> Nó sẽ nhả ra 1 link xanh biển (VD: http://localhost:5173).
+
+👉 Hãy giữ `Ctrl` + `Bấm Click` vào cái link đó, đăng nhập bằng `admin / admin123` và trải nghiệm nhé! Lỗi lầm hay muốn thay đổi màu sắc ở đâu hãy báo cho tôi.

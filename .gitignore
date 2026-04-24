@@ -1,0 +1,18 @@
+# Thư mục rác của Node modules
+node_modules/
+*/node_modules/
+
+# Kết quả build của Frontend
+frontend/dist/
+frontend/dist-ssr/
+
+# Block File chứa mật khẩu hệ thống
+.env
+.env.local
+*.env.*
+!.env.example
+
+# File sinh ra từ hệ điều hành và log
+npm-debug.log
+.DS_Store
+Thumbs.db
