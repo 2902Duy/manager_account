@@ -8,7 +8,7 @@ export default function Register() {
   const navigate = useNavigate();
   const [form, setForm] = useState({ email: '', password: '', confirm: '' });
   const [error, setError] = useState('');
-  const [success, setSuccess] = useState('');
+  const [success, setSuccess] = useState(false);
   const [loading, setLoading] = useState(false);
 
   const handleSubmit = async (e) => {
@@ -24,11 +24,11 @@ export default function Register() {
 
     setLoading(true);
     try {
-      const res = await axios.post(`${API_URL}/api/auth/signup`, {
+      await axios.post(`${API_URL}/api/auth/signup`, {
         email: form.email,
         password: form.password,
       });
-      setSuccess(res.data.message);
+      setSuccess(true);
       setTimeout(() => navigate('/login'), 3000);
     } catch (err) {
       setError(err.response?.data?.error || 'Lỗi kết nối máy chủ');
@@ -51,9 +51,7 @@ export default function Register() {
       <div className="max-w-[400px] w-full">
         {/* Header */}
         <div className="flex flex-col items-center mb-8">
-          <svg viewBox="0 0 100 100" className="w-10 h-10 mb-4 text-warm-dark" fill="currentColor">
-            <path d="M50 0 L100 25 L100 75 L50 100 L0 75 L0 25 Z" />
-          </svg>
+          <img src="/logo.png" alt="Account Vault" className="w-14 h-14 mb-4 object-contain" />
           <h1 className="text-[26px] font-bold tracking-[-0.6px] text-notion-black">Tạo tài khoản</h1>
           <p className="text-[14px] text-warm-gray-500 mt-1">Miễn phí · Không giới hạn</p>
         </div>
@@ -61,11 +59,24 @@ export default function Register() {
         {/* Card */}
         <div className="bg-notion-white border border-whisper rounded-[12px] shadow-deep p-8">
           {success ? (
-            <div className="text-center">
-              <div className="text-5xl mb-4">✉️</div>
-              <p className="text-[15px] font-semibold text-notion-black mb-2">Kiểm tra email!</p>
-              <p className="text-[13px] text-warm-gray-500">{success}</p>
-              <p className="text-[12px] text-warm-gray-300 mt-3">Đang chuyển đến trang đăng nhập...</p>
+            <div className="text-center py-4">
+              {/* Success Icon - Animated checkmark */}
+              <div className="w-16 h-16 mx-auto mb-5 rounded-full bg-green-50 border-2 border-green-200 flex items-center justify-center">
+                <svg className="w-8 h-8 text-green-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                </svg>
+              </div>
+              <p className="text-[18px] font-bold text-notion-black mb-2">Đăng ký thành công!</p>
+              <p className="text-[14px] text-warm-gray-500 leading-relaxed mb-1">
+                Tài khoản của bạn đã được tạo thành công.
+              </p>
+              <p className="text-[13px] text-warm-gray-500">
+                Đang chuyển đến trang đăng nhập...
+              </p>
+              {/* Progress bar */}
+              <div className="mt-4 h-1 bg-warm-white rounded-full overflow-hidden">
+                <div className="h-full bg-green-400 rounded-full animate-progress" />
+              </div>
             </div>
           ) : (
             <form onSubmit={handleSubmit} className="flex flex-col gap-5">

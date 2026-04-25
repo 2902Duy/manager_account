@@ -16,3 +16,12 @@ body {
 .whisper-border {
   border: 1px solid rgba(0, 0, 0, 0.1);
 }
+
+/* Animation cho thanh tiến trình trang đăng ký thành công */
+@keyframes progress {
+  0% { width: 0%; }
+  100% { width: 100%; }
+}
+.animate-progress {
+  animation: progress 3s ease-in-out forwards;
+}

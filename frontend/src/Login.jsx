@@ -30,9 +30,7 @@ export default function Login({ onLogin }) {
 
         {/* Logo & Title */}
         <div className="flex flex-col items-center mb-8">
-          <svg viewBox="0 0 100 100" className="w-10 h-10 mb-4 text-warm-dark" fill="currentColor">
-            <path d="M50 0 L100 25 L100 75 L50 100 L0 75 L0 25 Z" />
-          </svg>
+          <img src="/logo.png" alt="Account Vault" className="w-14 h-14 mb-4 object-contain" />
           <h1 className="text-[26px] font-bold tracking-[-0.6px] text-notion-black">Đăng nhập</h1>
           <p className="text-[14px] text-warm-gray-500 mt-1">Tiếp tục vào Account Vault</p>
         </div>
