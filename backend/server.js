@@ -39,7 +39,12 @@ console.log('✅ Allowed CORS origins:', allowedOrigins);
 
 app.use(cors({
   origin: (origin, cb) => {
-    if (!origin || allowedOrigins.includes(origin)) return cb(null, true);
+    // Không có origin (server-to-server, Postman) → cho phép
+    if (!origin) return cb(null, true);
+    // Kiểm tra danh sách cho phép
+    if (allowedOrigins.includes(origin)) return cb(null, true);
+    // Tự động cho phép mọi *.vercel.app subdomain
+    if (origin.endsWith('.vercel.app')) return cb(null, true);
     console.log('❌ CORS blocked origin:', origin);
     cb(new Error('Not allowed by CORS'));
   },
