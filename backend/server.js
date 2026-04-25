@@ -213,7 +213,18 @@ app.put('/api/accounts/:id', authMiddleware, async (req, res) => {
   const id = parseInt(req.params.id);
   const { account_type, account, password, information, gmail_link } = req.body;
 
-  const { data, error } = await supabase
+  // 1. Lấy dữ liệu CŨ trước khi cập nhật để so sánh
+  const { data: oldData } = await supabase
+    .from('stored_accounts')
+    .select('*')
+    .eq('id', id)
+    .eq('user_id', req.user.id)
+    .single();
+
+  if (!oldData) return res.status(404).json({ message: 'Không tìm thấy tài khoản' });
+
+  // 2. Thực hiện cập nhật dữ liệu mới
+  const { data: newData, error } = await supabase
     .from('stored_accounts')
     .update({ account_type, account, password, information, gmail_link })
     .eq('id', id)
@@ -222,9 +233,31 @@ app.put('/api/accounts/:id', authMiddleware, async (req, res) => {
     .single();
 
   if (error) { console.error(error); return res.status(500).json({ error: 'Lỗi cập nhật' }); }
-  if (!data) return res.status(404).json({ message: 'Không tìm thấy' });
-  logActivity(req.user.id, id, 'update', { account_name: account });
-  res.json(data);
+
+  // 3. So sánh các trường để tìm thay đổi
+  const changes = {};
+  const fields = ['account_type', 'account', 'password', 'information', 'gmail_link'];
+  
+  fields.forEach(field => {
+    // Chỉ lưu thay đổi nếu giá trị khác nhau (loại bỏ trường hợp null vs undefined vs '')
+    const oldVal = oldData[field] || '';
+    const newVal = req.body[field] || '';
+    
+    if (oldVal !== newVal) {
+      changes[field] = {
+        old: oldVal,
+        new: newVal
+      };
+    }
+  });
+
+  // 4. Lưu log chi tiết nếu có thay đổi
+  logActivity(req.user.id, id, 'update', { 
+    account_name: account,
+    changes: Object.keys(changes).length > 0 ? changes : null
+  });
+
+  res.json(newData);
 });
 
 // Pin Toggle
@@ -241,7 +274,6 @@ app.patch('/api/accounts/:id/pin', authMiddleware, async (req, res) => {
     .single();
 
   if (error) { console.error(error); return res.status(500).json({ error: 'Lỗi pin' }); }
-  logActivity(req.user.id, id, is_pinned ? 'pin' : 'unpin', { account_name: data?.account });
   res.json(data);
 });
 
