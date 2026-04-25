@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
-import { Eye, EyeOff, Trash2, Plus, Search, Copy, Check, LogOut, Shield } from 'lucide-react';
+import { Eye, EyeOff, Trash2, Plus, Search, Copy, Check, LogOut, Shield, Edit2 } from 'lucide-react';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
 
@@ -8,6 +8,7 @@ export default function Dashboard({ token, onLogout }) {
   const [accounts, setAccounts] = useState([]);
   const [showPwd, setShowPwd] = useState({});
   const [openModal, setOpenModal] = useState(false);
+  const [editingId, setEditingId] = useState(null);
   const [search, setSearch] = useState('');
   const [copied, setCopied] = useState(null);
   const [form, setForm] = useState({ account_type: 'Game', account: '', password: '', information: '', gmail_link: '' });
@@ -39,11 +40,34 @@ export default function Dashboard({ token, onLogout }) {
     fetchAccounts();
   };
 
+  const handleOpenAdd = () => {
+    setForm({ account_type: 'Game', account: '', password: '', information: '', gmail_link: '' });
+    setEditingId(null);
+    setOpenModal(true);
+  };
+
+  const handleEdit = (acc) => {
+    setForm({
+      account_type: acc.account_type || '',
+      account: acc.account || '',
+      password: acc.password || '',
+      information: acc.information || '',
+      gmail_link: acc.gmail_link || ''
+    });
+    setEditingId(acc.id);
+    setOpenModal(true);
+  };
+
   const handleSave = async (e) => {
     e.preventDefault();
-    await axios.post(`${API_URL}/api/accounts`, form, { headers: { Authorization: `Bearer ${token}` } });
+    if (editingId) {
+      await axios.put(`${API_URL}/api/accounts/${editingId}`, form, { headers: { Authorization: `Bearer ${token}` } });
+    } else {
+      await axios.post(`${API_URL}/api/accounts`, form, { headers: { Authorization: `Bearer ${token}` } });
+    }
     setOpenModal(false);
     setForm({ account_type: 'Game', account: '', password: '', information: '', gmail_link: '' });
+    setEditingId(null);
     fetchAccounts();
   };
 
@@ -81,10 +105,6 @@ export default function Dashboard({ token, onLogout }) {
         {/* Phần tiêu đề */}
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-end mb-6 sm:mb-8 gap-4">
           <div className="w-full sm:w-auto">
-            <div className="flex items-center gap-2 mb-2">
-              <Shield size={20} className="text-notion-blue" />
-              <span className="text-[12px] font-semibold text-notion-blue uppercase tracking-[1px]">Kho lưu trữ</span>
-            </div>
             <h1 className="text-[32px] sm:text-[44px] font-bold tracking-[-1.5px] leading-tight text-notion-black">
               Tài khoản của tôi
             </h1>
@@ -92,7 +112,7 @@ export default function Dashboard({ token, onLogout }) {
               Quản lý tập trung tất cả tài khoản và mật khẩu.
             </p>
           </div>
-          <button onClick={() => setOpenModal(true)} className="w-full sm:w-auto flex justify-center items-center gap-1.5 bg-notion-blue hover:bg-notion-blue-hover text-white px-4 py-[10px] sm:py-[8px] rounded-[8px] sm:rounded-[6px] text-[15px] font-semibold transition active:scale-[0.98] shadow-sm">
+          <button onClick={handleOpenAdd} className="w-full sm:w-auto flex justify-center items-center gap-1.5 bg-notion-blue hover:bg-notion-blue-hover text-white px-4 py-[10px] sm:py-[8px] rounded-[8px] sm:rounded-[6px] text-[15px] font-semibold transition active:scale-[0.98] shadow-sm">
             <Plus size={16}/>Thêm mới
           </button>
         </div>
@@ -134,47 +154,54 @@ export default function Dashboard({ token, onLogout }) {
               {/* Bảng */}
               <div className="w-full bg-notion-white border border-whisper rounded-[10px] shadow-whisper overflow-hidden">
                 <div className="overflow-x-auto w-full">
-                  <table className="w-full min-w-[650px] text-left text-[14px] border-collapse">
+                  <table className="w-full min-w-[650px] text-left text-[14px] border-collapse table-fixed">
                     <thead className="bg-[#fafaf9] text-warm-gray-500 text-[12px] uppercase tracking-[0.5px]">
                       <tr>
-                        <th className="px-4 py-2.5 font-semibold border-b border-whisper">Tài khoản</th>
-                        <th className="px-4 py-2.5 font-semibold border-b border-whisper w-[200px]">Mật khẩu</th>
-                        <th className="px-4 py-2.5 font-semibold border-b border-whisper">Ghi chú</th>
-                        <th className="px-4 py-2.5 font-semibold border-b border-whisper">Gmail liên kết</th>
-                        <th className="px-4 py-2.5 font-semibold border-b border-whisper w-10"></th>
+                        <th className="px-4 py-2.5 font-semibold border-b border-whisper w-[25%]">Tài khoản</th>
+                        <th className="px-4 py-2.5 font-semibold border-b border-whisper w-[22%]">Mật khẩu</th>
+                        <th className="px-4 py-2.5 font-semibold border-b border-whisper w-[22%]">Ghi chú</th>
+                        <th className="px-4 py-2.5 font-semibold border-b border-whisper w-[22%]">Gmail liên kết</th>
+                        <th className="px-4 py-2.5 font-semibold border-b border-whisper w-[9%] text-right"></th>
                       </tr>
                     </thead>
                     <tbody>
                       {items.map(acc => (
                         <tr key={acc.id} className="hover:bg-warm-white/60 transition group align-top border-b border-whisper last:border-b-0">
-                          <td className="px-4 py-3 font-medium text-[14px] text-notion-black whitespace-normal break-words min-w-[120px]">
+                          <td className="px-4 py-3 font-medium text-[14px] text-notion-black truncate" title={acc.account}>
                             {acc.account}
                           </td>
                           <td className="px-4 py-3">
-                            <div className="flex items-center gap-1.5">
-                              <span className="font-mono text-[13px] text-warm-gray-500 bg-warm-white px-1.5 py-[2px] rounded-[4px] min-w-[80px]">
+                            <div className="flex items-center gap-1.5 overflow-hidden">
+                              <span className="font-mono text-[13px] text-warm-gray-500 bg-warm-white px-1.5 py-[2px] rounded-[4px] truncate" title={showPwd[acc.id] ? acc.password : '••••••••'}>
                                 {showPwd[acc.id] ? acc.password : '••••••••'}
                               </span>
-                              <button onClick={() => togglePwd(acc.id)} className="text-warm-gray-300 hover:text-warm-gray-500 transition p-1 rounded-[4px] hover:bg-warm-white" title={showPwd[acc.id] ? 'Ẩn' : 'Hiện'}>
-                                {showPwd[acc.id] ? <EyeOff size={14}/> : <Eye size={14}/>}
-                              </button>
-                              <button onClick={() => handleCopy(acc.password, acc.id)} className="text-warm-gray-300 hover:text-notion-blue transition p-1 rounded-[4px] hover:bg-warm-white" title="Sao chép">
-                                {copied === acc.id ? <Check size={14} className="text-green-500" /> : <Copy size={14}/>}
-                              </button>
+                              <div className="flex flex-shrink-0">
+                                <button onClick={() => togglePwd(acc.id)} className="text-warm-gray-300 hover:text-warm-gray-500 transition p-1 rounded-[4px] hover:bg-warm-white" title={showPwd[acc.id] ? 'Ẩn' : 'Hiện'}>
+                                  {showPwd[acc.id] ? <EyeOff size={14}/> : <Eye size={14}/>}
+                                </button>
+                                <button onClick={() => handleCopy(acc.password, acc.id)} className="text-warm-gray-300 hover:text-notion-blue transition p-1 rounded-[4px] hover:bg-warm-white" title="Sao chép">
+                                  {copied === acc.id ? <Check size={14} className="text-green-500" /> : <Copy size={14}/>}
+                                </button>
+                              </div>
                             </div>
                           </td>
-                          <td className="px-4 py-3 text-warm-gray-500 max-w-[200px] truncate text-[13px]" title={acc.information}>
+                          <td className="px-4 py-3 text-warm-gray-500 truncate text-[13px]" title={acc.information}>
                             {acc.information || '—'}
                           </td>
-                          <td className="px-4 py-3 text-warm-gray-500 max-w-[180px] truncate text-[13px]">
+                          <td className="px-4 py-3 text-warm-gray-500 truncate text-[13px]" title={acc.gmail_link}>
                             {acc.gmail_link ? (
                               <span className="hover:text-notion-blue hover:underline cursor-pointer">{acc.gmail_link}</span>
                             ) : '—'}
                           </td>
-                          <td className="px-3 py-3 text-center">
-                            <button onClick={() => handleDelete(acc.id)} className="text-warm-gray-300 sm:opacity-0 group-hover:opacity-100 hover:bg-red-50 hover:text-red-500 transition p-1.5 rounded-[6px]" title="Xóa">
-                              <Trash2 size={15}/>
-                            </button>
+                          <td className="px-3 py-3 text-right">
+                            <div className="flex items-center justify-end gap-1 opacity-100 sm:opacity-0 group-hover:opacity-100 transition">
+                              <button onClick={() => handleEdit(acc)} className="text-warm-gray-300 hover:bg-notion-blue/10 hover:text-notion-blue transition p-1.5 rounded-[6px]" title="Sửa">
+                                <Edit2 size={15}/>
+                              </button>
+                              <button onClick={() => handleDelete(acc.id)} className="text-warm-gray-300 hover:bg-red-50 hover:text-red-500 transition p-1.5 rounded-[6px]" title="Xóa">
+                                <Trash2 size={15}/>
+                              </button>
+                            </div>
                           </td>
                         </tr>
                       ))}
@@ -200,7 +227,9 @@ export default function Dashboard({ token, onLogout }) {
           <div className="bg-notion-white border-t sm:border border-whisper rounded-t-[16px] sm:rounded-[12px] shadow-deep p-6 sm:p-8 w-full max-w-[480px] max-h-[90vh] overflow-y-auto">
             
             <div className="flex justify-between items-center mb-6">
-              <h2 className="text-[20px] sm:text-[22px] font-bold tracking-[-0.25px] text-notion-black">Thêm tài khoản</h2>
+              <h2 className="text-[20px] sm:text-[22px] font-bold tracking-[-0.25px] text-notion-black">
+                {editingId ? 'Sửa tài khoản' : 'Thêm tài khoản'}
+              </h2>
               <button onClick={() => setOpenModal(false)} className="sm:hidden w-8 h-8 flex items-center justify-center bg-warm-white rounded-full text-warm-gray-500 text-[18px]">&times;</button>
             </div>
 
@@ -228,7 +257,9 @@ export default function Dashboard({ token, onLogout }) {
               
               <div className="flex gap-3 mt-4 pt-4 sm:pt-6 pb-2 sm:pb-0 border-t border-whisper justify-end">
                 <button type="button" onClick={() => setOpenModal(false)} className="hidden sm:block px-4 py-[8px] text-[15px] font-medium hover:bg-warm-white text-notion-black rounded-[6px] border border-whisper transition">Hủy</button>
-                <button type="submit" className="w-full sm:w-auto px-5 py-[12px] sm:py-[8px] text-[15px] font-semibold bg-notion-blue hover:bg-notion-blue-hover text-white rounded-[8px] sm:rounded-[6px] transition active:scale-[0.98]">Lưu tài khoản</button>
+                <button type="submit" className="w-full sm:w-auto px-5 py-[12px] sm:py-[8px] text-[15px] font-semibold bg-notion-blue hover:bg-notion-blue-hover text-white rounded-[8px] sm:rounded-[6px] transition active:scale-[0.98]">
+                  {editingId ? 'Cập nhật' : 'Lưu tài khoản'}
+                </button>
               </div>
             </form>
           </div>
