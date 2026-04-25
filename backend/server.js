@@ -145,15 +145,26 @@ app.post('/api/auth/forgot-password', async (req, res) => {
 });
 
 // ─────────────────────────────────────────
+// Activity Log Helper
+// ─────────────────────────────────────────
+const logActivity = async (userId, accountId, action, details = {}) => {
+  try {
+    await supabase.from('activity_logs').insert([{ user_id: userId, account_id: accountId, action, details }]);
+  } catch (e) { console.error('Log activity error:', e); }
+};
+
+// ─────────────────────────────────────────
 // CRUD Routes — stored_accounts (cần đăng nhập)
 // ─────────────────────────────────────────
 
-// Read All — chỉ trả về accounts của user hiện tại
+// Read All — chỉ trả về accounts chưa xóa của user hiện tại
 app.get('/api/accounts', authMiddleware, async (req, res) => {
   const { data, error } = await supabase
     .from('stored_accounts')
     .select('*')
     .eq('user_id', req.user.id)
+    .eq('is_deleted', false)
+    .order('is_pinned', { ascending: false })
     .order('id', { ascending: false })
     .limit(500);
 
@@ -172,7 +183,29 @@ app.post('/api/accounts', authMiddleware, async (req, res) => {
     .single();
 
   if (error) { console.error(error); return res.status(500).json({ error: 'Lỗi khi tạo tài khoản' }); }
+  logActivity(req.user.id, data.id, 'create', { account_name: account });
   res.status(201).json(data);
+});
+
+// Bulk Import
+app.post('/api/accounts/bulk', authMiddleware, async (req, res) => {
+  const { accounts } = req.body;
+  if (!accounts || !Array.isArray(accounts) || accounts.length === 0) {
+    return res.status(400).json({ error: 'Dữ liệu không hợp lệ' });
+  }
+  const rows = accounts.map(a => ({
+    account_type: a.account_type || 'Khác',
+    account: a.account || '',
+    password: a.password || '',
+    information: a.information || '',
+    gmail_link: a.gmail_link || '',
+    user_id: req.user.id
+  }));
+
+  const { data, error } = await supabase.from('stored_accounts').insert(rows).select();
+  if (error) { console.error(error); return res.status(500).json({ error: 'Lỗi khi nhập dữ liệu' }); }
+  logActivity(req.user.id, null, 'create', { bulk: true, count: rows.length });
+  res.status(201).json({ imported: data.length });
 });
 
 // Update
@@ -184,27 +217,109 @@ app.put('/api/accounts/:id', authMiddleware, async (req, res) => {
     .from('stored_accounts')
     .update({ account_type, account, password, information, gmail_link })
     .eq('id', id)
-    .eq('user_id', req.user.id) // bảo vệ: chỉ update record của chính mình
+    .eq('user_id', req.user.id)
     .select()
     .single();
 
   if (error) { console.error(error); return res.status(500).json({ error: 'Lỗi cập nhật' }); }
   if (!data) return res.status(404).json({ message: 'Không tìm thấy' });
+  logActivity(req.user.id, id, 'update', { account_name: account });
   res.json(data);
 });
 
-// Delete
+// Pin Toggle
+app.patch('/api/accounts/:id/pin', authMiddleware, async (req, res) => {
+  const id = parseInt(req.params.id);
+  const { is_pinned } = req.body;
+
+  const { data, error } = await supabase
+    .from('stored_accounts')
+    .update({ is_pinned })
+    .eq('id', id)
+    .eq('user_id', req.user.id)
+    .select()
+    .single();
+
+  if (error) { console.error(error); return res.status(500).json({ error: 'Lỗi pin' }); }
+  logActivity(req.user.id, id, is_pinned ? 'pin' : 'unpin', { account_name: data?.account });
+  res.json(data);
+});
+
+// Soft Delete (chuyển vào thùng rác)
 app.delete('/api/accounts/:id', authMiddleware, async (req, res) => {
+  const id = parseInt(req.params.id);
+
+  // Lấy tên trước khi xóa
+  const { data: acc } = await supabase.from('stored_accounts').select('account').eq('id', id).eq('user_id', req.user.id).single();
+
+  const { error } = await supabase
+    .from('stored_accounts')
+    .update({ is_deleted: true, deleted_at: new Date().toISOString() })
+    .eq('id', id)
+    .eq('user_id', req.user.id);
+
+  if (error) { console.error(error); return res.status(500).json({ error: 'Lỗi khi xóa' }); }
+  logActivity(req.user.id, id, 'delete', { account_name: acc?.account });
+  res.json({ message: 'Đã chuyển vào thùng rác' });
+});
+
+// ─── Trash Routes ───
+
+// Xem thùng rác
+app.get('/api/accounts/trash', authMiddleware, async (req, res) => {
+  const { data, error } = await supabase
+    .from('stored_accounts')
+    .select('*')
+    .eq('user_id', req.user.id)
+    .eq('is_deleted', true)
+    .order('deleted_at', { ascending: false });
+
+  if (error) { console.error(error); return res.status(500).json({ error: 'Lỗi' }); }
+  res.json(data);
+});
+
+// Khôi phục
+app.post('/api/accounts/:id/restore', authMiddleware, async (req, res) => {
+  const id = parseInt(req.params.id);
+
+  const { data, error } = await supabase
+    .from('stored_accounts')
+    .update({ is_deleted: false, deleted_at: null })
+    .eq('id', id)
+    .eq('user_id', req.user.id)
+    .select()
+    .single();
+
+  if (error) { console.error(error); return res.status(500).json({ error: 'Lỗi khôi phục' }); }
+  logActivity(req.user.id, id, 'restore', { account_name: data?.account });
+  res.json(data);
+});
+
+// Xóa vĩnh viễn
+app.delete('/api/accounts/:id/permanent', authMiddleware, async (req, res) => {
   const id = parseInt(req.params.id);
 
   const { error } = await supabase
     .from('stored_accounts')
     .delete()
     .eq('id', id)
-    .eq('user_id', req.user.id); // bảo vệ: chỉ xóa record của chính mình
+    .eq('user_id', req.user.id);
 
-  if (error) { console.error(error); return res.status(500).json({ error: 'Lỗi khi xóa' }); }
-  res.json({ message: 'Đã xóa' });
+  if (error) { console.error(error); return res.status(500).json({ error: 'Lỗi khi xóa vĩnh viễn' }); }
+  res.json({ message: 'Đã xóa vĩnh viễn' });
+});
+
+// ─── Activity Log ───
+app.get('/api/activity-logs', authMiddleware, async (req, res) => {
+  const { data, error } = await supabase
+    .from('activity_logs')
+    .select('*')
+    .eq('user_id', req.user.id)
+    .order('created_at', { ascending: false })
+    .limit(50);
+
+  if (error) { console.error(error); return res.status(500).json({ error: 'Lỗi tải lịch sử' }); }
+  res.json(data);
 });
 
 // ─────────────────────────────────────────

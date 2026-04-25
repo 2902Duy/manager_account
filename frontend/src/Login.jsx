@@ -25,18 +25,18 @@ export default function Login({ onLogin }) {
   };
 
   return (
-    <div className="min-h-screen bg-notion-white flex flex-col justify-center items-center py-12 px-4">
+    <div className="min-h-screen bg-notion-white dark:bg-[#191919] flex flex-col justify-center items-center py-12 px-4">
       <div className="max-w-[400px] w-full">
 
         {/* Logo & Title */}
         <div className="flex flex-col items-center mb-8">
           <img src="/logo.png" alt="Account Vault" className="w-14 h-14 mb-4 object-contain" />
-          <h1 className="text-[26px] font-bold tracking-[-0.6px] text-notion-black">Đăng nhập</h1>
-          <p className="text-[14px] text-warm-gray-500 mt-1">Tiếp tục vào Account Vault</p>
+          <h1 className="text-[26px] font-bold tracking-[-0.6px] text-notion-black dark:text-white">Đăng nhập</h1>
+          <p className="text-[14px] text-warm-gray-500 dark:text-neutral-400 mt-1">Tiếp tục vào Account Vault</p>
         </div>
 
         {/* Card */}
-        <div className="bg-notion-white border border-whisper rounded-[12px] shadow-deep p-8">
+        <div className="bg-notion-white dark:bg-[#252525] border border-whisper dark:border-neutral-700 rounded-[12px] shadow-deep p-8">
           <form onSubmit={handleSubmit} className="flex flex-col gap-5">
             {error && (
               <div className="text-[13px] text-red-600 px-3 py-2 rounded-[6px] bg-red-50 border border-red-200">
@@ -45,21 +45,21 @@ export default function Login({ onLogin }) {
             )}
 
             <div>
-              <label className="block text-[13px] font-medium text-warm-gray-500 mb-[6px]">Email</label>
+              <label className="block text-[13px] font-medium text-warm-gray-500 dark:text-neutral-400 mb-[6px]">Email</label>
               <input
                 type="email" required autoFocus
                 placeholder="you@example.com"
-                className="w-full bg-notion-white border border-whisper rounded-[6px] px-3 py-[9px] text-[15px] focus:outline-none focus:ring-2 focus:ring-notion-blue/40 focus:border-notion-blue transition"
+                className="w-full bg-notion-white dark:bg-neutral-800 border border-whisper dark:border-neutral-700 rounded-[6px] px-3 py-[9px] text-[15px] text-notion-black dark:text-neutral-100 focus:outline-none focus:ring-2 focus:ring-notion-blue/40 focus:border-notion-blue transition"
                 value={email} onChange={e => setEmail(e.target.value)}
               />
             </div>
 
             <div>
-              <label className="block text-[13px] font-medium text-warm-gray-500 mb-[6px]">Mật khẩu</label>
+              <label className="block text-[13px] font-medium text-warm-gray-500 dark:text-neutral-400 mb-[6px]">Mật khẩu</label>
               <input
                 type="password" required
                 placeholder="••••••••"
-                className="w-full bg-notion-white border border-whisper rounded-[6px] px-3 py-[9px] text-[15px] focus:outline-none focus:ring-2 focus:ring-notion-blue/40 focus:border-notion-blue transition"
+                className="w-full bg-notion-white dark:bg-neutral-800 border border-whisper dark:border-neutral-700 rounded-[6px] px-3 py-[9px] text-[15px] text-notion-black dark:text-neutral-100 focus:outline-none focus:ring-2 focus:ring-notion-blue/40 focus:border-notion-blue transition"
                 value={password} onChange={e => setPassword(e.target.value)}
               />
             </div>
@@ -79,7 +79,7 @@ export default function Login({ onLogin }) {
           </form>
         </div>
 
-        <p className="text-center text-[13px] text-warm-gray-500 mt-5">
+        <p className="text-center text-[13px] text-warm-gray-500 dark:text-neutral-400 mt-5">
           Chưa có tài khoản?{' '}
           <Link to="/register" className="text-notion-blue font-medium hover:underline">
             Đăng ký ngay

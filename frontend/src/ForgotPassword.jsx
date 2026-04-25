@@ -25,19 +25,19 @@ export default function ForgotPassword() {
   };
 
   return (
-    <div className="min-h-screen bg-notion-white flex flex-col justify-center items-center py-12 px-4">
+    <div className="min-h-screen bg-notion-white dark:bg-[#191919] flex flex-col justify-center items-center py-12 px-4">
       <div className="max-w-[400px] w-full">
         {/* Header */}
         <div className="flex flex-col items-center mb-8">
           <img src="/logo.png" alt="Account Vault" className="w-14 h-14 mb-4 object-contain" />
-          <h1 className="text-[26px] font-bold tracking-[-0.6px] text-notion-black">Quên mật khẩu</h1>
-          <p className="text-[14px] text-warm-gray-500 mt-1 text-center">
+          <h1 className="text-[26px] font-bold tracking-[-0.6px] text-notion-black dark:text-white">Quên mật khẩu</h1>
+          <p className="text-[14px] text-warm-gray-500 dark:text-neutral-400 mt-1 text-center">
             Nhập email để nhận link đặt lại mật khẩu
           </p>
         </div>
 
         {/* Card */}
-        <div className="bg-notion-white border border-whisper rounded-[12px] shadow-deep p-8">
+        <div className="bg-notion-white dark:bg-[#252525] border border-whisper dark:border-neutral-700 rounded-[12px] shadow-deep p-8">
           {sent ? (
             <div className="text-center">
               <div className="text-5xl mb-4">📬</div>
@@ -57,11 +57,11 @@ export default function ForgotPassword() {
                 </div>
               )}
               <div>
-                <label className="block text-[13px] font-medium text-warm-gray-500 mb-[6px]">Email</label>
+                <label className="block text-[13px] font-medium text-warm-gray-500 dark:text-neutral-400 mb-[6px]">Email</label>
                 <input
                   type="email" required autoFocus
                   placeholder="you@example.com"
-                  className="w-full border border-whisper rounded-[6px] px-3 py-[9px] text-[15px] focus:outline-none focus:ring-2 focus:ring-notion-blue/40 focus:border-notion-blue transition bg-notion-white"
+                  className="w-full border border-whisper dark:border-neutral-700 rounded-[6px] px-3 py-[9px] text-[15px] text-notion-black dark:text-neutral-100 focus:outline-none focus:ring-2 focus:ring-notion-blue/40 focus:border-notion-blue transition bg-notion-white dark:bg-neutral-800"
                   value={email} onChange={e => setEmail(e.target.value)}
                 />
               </div>
@@ -75,7 +75,7 @@ export default function ForgotPassword() {
           )}
         </div>
 
-        <p className="text-center text-[13px] text-warm-gray-500 mt-5">
+        <p className="text-center text-[13px] text-warm-gray-500 dark:text-neutral-400 mt-5">
           <Link to="/login" className="text-notion-blue font-medium hover:underline">
             ← Quay lại đăng nhập
           </Link>
