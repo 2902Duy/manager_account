@@ -144,6 +144,32 @@ app.post('/api/auth/forgot-password', async (req, res) => {
   res.json({ message: 'Email đặt lại mật khẩu đã được gửi. Vui lòng kiểm tra hòm thư!' });
 });
 
+// [POST] /api/auth/reset-password — Đặt lại mật khẩu mới
+app.post('/api/auth/reset-password', async (req, res) => {
+  const { password, hash } = req.body;
+  if (!password) return res.status(400).json({ error: 'Cần nhập mật khẩu mới' });
+
+  // Supabase cần token từ hash để xác thực việc đổi pass
+  // Token thường nằm sau #access_token=...
+  const tokenMatch = hash?.match(/access_token=([^&]*)/);
+  const accessToken = tokenMatch ? tokenMatch[1] : null;
+
+  if (!accessToken) {
+    return res.status(400).json({ error: 'Phiên làm việc hết hạn hoặc link không hợp lệ' });
+  }
+
+  // Sử dụng token này để update user
+  const { error } = await supabaseAuth.auth.updateUser({
+    password: password
+  }, {
+    accessToken: accessToken
+  });
+
+  if (error) return res.status(400).json({ error: error.message });
+
+  res.json({ message: 'Cập nhật mật khẩu thành công!' });
+});
+
 // ─────────────────────────────────────────
 // Activity Log Helper
 // ─────────────────────────────────────────
