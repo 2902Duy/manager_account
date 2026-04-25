@@ -28,11 +28,15 @@ const supabaseAuth = createClient(
 // Middleware
 // ─────────────────────────────────────────
 
-// Hỗ trợ nhiều origin cách nhau bởi dấu phẩy, và tự xóa dấu / cuối
+// Hỗ trợ nhiều origin cách nhau bởi dấu phẩy, tự thêm https:// nếu thiếu
 const allowedOrigins = [
   'http://localhost:5173',
   'http://localhost:5174',
-  ...(process.env.CORS_ORIGIN || '').split(',').map(o => o.trim().replace(/\/+$/, '')),
+  ...(process.env.CORS_ORIGIN || '').split(',').map(o => {
+    o = o.trim().replace(/\/+$/, '');
+    if (o && !o.startsWith('http')) o = 'https://' + o;
+    return o;
+  }),
 ].filter(Boolean);
 
 console.log('✅ Allowed CORS origins:', allowedOrigins);
