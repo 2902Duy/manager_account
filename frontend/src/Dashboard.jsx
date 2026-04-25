@@ -1,6 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
-import { Eye, EyeOff, Trash2, Plus, Search, Copy, Check, LogOut, Edit2, Sun, Moon, Pin, PinOff, Download, Upload, Clock, RotateCcw, X, MoreHorizontal } from 'lucide-react';
+import { 
+  Eye, EyeOff, Trash2, Plus, Search, Copy, Check, LogOut, Edit2, Sun, Moon, 
+  Pin, PinOff, Download, Upload, Clock, RotateCcw, X, Inbox, Package, Trash, RefreshCw
+} from 'lucide-react';
 import PasswordGenerator from './PasswordGenerator';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
@@ -264,7 +267,10 @@ export default function Dashboard({ token, onLogout }) {
         {pinned.length > 0 && (
           <div className="mb-6">
             <div className="flex items-center gap-2 mb-3">
-              <span className="inline-block px-2 py-[3px] bg-amber-50 dark:bg-amber-500/10 text-amber-600 dark:text-amber-400 rounded-full text-[11px] font-bold tracking-[0.5px] uppercase">📌 Đã ghim</span>
+              <div className="flex items-center gap-1 px-2 py-[3px] bg-amber-50 dark:bg-amber-500/10 text-amber-600 dark:text-amber-400 rounded-full text-[11px] font-bold tracking-[0.5px] uppercase">
+                <Pin size={12} className="fill-amber-400 stroke-amber-400" />
+                <span>Đã ghim</span>
+              </div>
               <span className="text-[12px] text-warm-gray-300 dark:text-neutral-500">{pinned.length} tài khoản</span>
             </div>
             <div className="w-full bg-notion-white dark:bg-[#252525] border border-whisper dark:border-neutral-800 rounded-[10px] shadow-whisper overflow-hidden">
@@ -313,7 +319,11 @@ export default function Dashboard({ token, onLogout }) {
         {/* Bảng dữ liệu — nhóm theo loại */}
         {Object.keys(grouped).length === 0 && pinned.length === 0 ? (
           <div className="text-center py-16 border border-whisper dark:border-neutral-800 rounded-[12px] bg-warm-white/50 dark:bg-neutral-800/30">
-            <div className="text-4xl mb-3">📂</div>
+            <div className="flex justify-center mb-3">
+              <div className="w-12 h-12 bg-warm-white dark:bg-neutral-800 rounded-full flex items-center justify-center text-warm-gray-300 dark:text-neutral-600">
+                <Inbox size={32} strokeWidth={1.5} />
+              </div>
+            </div>
             <p className="text-[15px] text-warm-gray-500 dark:text-neutral-400 font-medium">Chưa có tài khoản nào</p>
             <p className="text-[13px] text-warm-gray-300 dark:text-neutral-500 mt-1">Bấm "Thêm mới" để bắt đầu lưu trữ.</p>
           </div>
@@ -420,12 +430,17 @@ export default function Dashboard({ token, onLogout }) {
         <div className="fixed inset-0 bg-warm-dark/40 dark:bg-black/60 backdrop-blur-[2px] flex items-end sm:items-center justify-center z-50 p-0 sm:p-4">
           <div className="bg-notion-white dark:bg-[#252525] border-t sm:border border-whisper dark:border-neutral-700 rounded-t-[16px] sm:rounded-[12px] shadow-deep p-6 sm:p-8 w-full max-w-[520px] max-h-[80vh] overflow-y-auto">
             <div className="flex justify-between items-center mb-5">
-              <h2 className="text-[20px] font-bold text-notion-black dark:text-white">🗑️ Thùng rác</h2>
+              <div className="flex items-center gap-2">
+                <Trash size={20} className="text-red-500" />
+                <h2 className="text-[20px] font-bold text-notion-black dark:text-white">Thùng rác</h2>
+              </div>
               <button onClick={() => setShowTrash(false)} className="w-8 h-8 flex items-center justify-center bg-warm-white dark:bg-neutral-700 rounded-full text-warm-gray-500 dark:text-neutral-300"><X size={16}/></button>
             </div>
             {trashedAccounts.length === 0 ? (
               <div className="text-center py-10">
-                <div className="text-3xl mb-2">🗑️</div>
+                <div className="flex justify-center mb-3">
+                  <Trash size={40} strokeWidth={1} className="text-warm-gray-200 dark:text-neutral-700" />
+                </div>
                 <p className="text-[14px] text-warm-gray-500 dark:text-neutral-400">Thùng rác trống</p>
               </div>
             ) : (
@@ -453,20 +468,35 @@ export default function Dashboard({ token, onLogout }) {
         <div className="fixed inset-0 bg-warm-dark/40 dark:bg-black/60 backdrop-blur-[2px] flex items-end sm:items-center justify-center z-50 p-0 sm:p-4">
           <div className="bg-notion-white dark:bg-[#252525] border-t sm:border border-whisper dark:border-neutral-700 rounded-t-[16px] sm:rounded-[12px] shadow-deep p-6 sm:p-8 w-full max-w-[520px] max-h-[80vh] overflow-y-auto">
             <div className="flex justify-between items-center mb-5">
-              <h2 className="text-[20px] font-bold text-notion-black dark:text-white">🕐 Lịch sử hoạt động</h2>
+              <div className="flex items-center gap-2">
+                <Clock size={20} className="text-notion-blue" />
+                <h2 className="text-[20px] font-bold text-notion-black dark:text-white">Lịch sử hoạt động</h2>
+              </div>
               <button onClick={() => setShowActivityLog(false)} className="w-8 h-8 flex items-center justify-center bg-warm-white dark:bg-neutral-700 rounded-full text-warm-gray-500 dark:text-neutral-300"><X size={16}/></button>
             </div>
             {activityLogs.length === 0 ? (
               <div className="text-center py-10">
-                <div className="text-3xl mb-2">📋</div>
+                <div className="flex justify-center mb-3">
+                  <Clock size={40} strokeWidth={1} className="text-warm-gray-200 dark:text-neutral-700" />
+                </div>
                 <p className="text-[14px] text-warm-gray-500 dark:text-neutral-400">Chưa có hoạt động nào</p>
               </div>
             ) : (
               <div className="space-y-0">
                 {activityLogs.map((log, i) => (
                   <div key={log.id} className="flex gap-3 py-3 border-b border-whisper dark:border-neutral-700 last:border-b-0">
-                    <div className={`w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0 text-[12px] ${log.action === 'create' ? 'bg-emerald-50 dark:bg-emerald-500/10' : log.action === 'delete' ? 'bg-red-50 dark:bg-red-500/10' : 'bg-blue-50 dark:bg-blue-500/10'}`}>
-                      {log.action === 'create' ? '➕' : log.action === 'delete' ? '🗑️' : log.action === 'restore' ? '♻️' : log.action === 'pin' || log.action === 'unpin' ? '📌' : '✏️'}
+                    <div className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 ${
+                      log.action === 'create' ? 'bg-emerald-50 dark:bg-emerald-500/10 text-emerald-500' : 
+                      log.action === 'delete' ? 'bg-red-50 dark:bg-red-500/10 text-red-500' : 
+                      log.action === 'restore' ? 'bg-amber-50 dark:bg-amber-500/10 text-amber-500' :
+                      log.action === 'pin' ? 'bg-purple-50 dark:bg-purple-500/10 text-purple-500' :
+                      'bg-blue-50 dark:bg-blue-500/10 text-notion-blue'
+                    }`}>
+                      {log.action === 'create' ? <Plus size={16}/> : 
+                       log.action === 'delete' ? <Trash2 size={16}/> : 
+                       log.action === 'restore' ? <RefreshCw size={16}/> : 
+                       log.action === 'pin' || log.action === 'unpin' ? <Pin size={16}/> : 
+                       <Edit2 size={16}/>}
                     </div>
                     <div className="min-w-0 flex-1">
                       <p className="text-[13px] text-notion-black dark:text-neutral-200">
@@ -512,7 +542,10 @@ export default function Dashboard({ token, onLogout }) {
         <div className="fixed inset-0 bg-warm-dark/40 dark:bg-black/60 backdrop-blur-[2px] flex items-end sm:items-center justify-center z-50 p-0 sm:p-4">
           <div className="bg-notion-white dark:bg-[#252525] border-t sm:border border-whisper dark:border-neutral-700 rounded-t-[16px] sm:rounded-[12px] shadow-deep p-6 sm:p-8 w-full max-w-[420px]">
             <div className="flex justify-between items-center mb-5">
-              <h2 className="text-[20px] font-bold text-notion-black dark:text-white">📦 Xuất / Nhập dữ liệu</h2>
+              <div className="flex items-center gap-2">
+                <Package size={20} className="text-amber-500" />
+                <h2 className="text-[20px] font-bold text-notion-black dark:text-white">Xuất / Nhập dữ liệu</h2>
+              </div>
               <button onClick={() => setShowImportExport(false)} className="w-8 h-8 flex items-center justify-center bg-warm-white dark:bg-neutral-700 rounded-full text-warm-gray-500 dark:text-neutral-300"><X size={16}/></button>
             </div>
             <div className="space-y-3">
