@@ -193,7 +193,7 @@ export default function Dashboard({ token, onLogout }) {
   // Filter Logic
   const filtered = accounts.filter(acc => {
     const searchLower = search.toLowerCase();
-    const matchBasic = [acc.account_type, acc.account, acc.information].join(' ').toLowerCase().includes(searchLower);
+    const matchBasic = [acc.account_type, acc.account].join(' ').toLowerCase().includes(searchLower);
     const matchTags = (acc.tags || []).some(tag => tag.toLowerCase().includes(searchLower));
     return matchBasic || matchTags;
   });
@@ -222,7 +222,7 @@ export default function Dashboard({ token, onLogout }) {
       <div className="relative mb-8">
         <Search size={20} className="absolute left-4 top-1/2 -translate-y-1/2 text-warm-gray-300" />
         <input
-          type="text" placeholder="Tìm kiếm tài khoản, dịch vụ hoặc #tag..."
+          type="text" placeholder="Tìm theo loại tài khoản, tên tài khoản hoặc #tag..."
           className="w-full bg-white dark:bg-neutral-800 border border-whisper dark:border-neutral-700 rounded-2xl pl-12 pr-4 py-4 text-[16px] shadow-sm focus:outline-none focus:ring-4 focus:ring-notion-blue/10 focus:border-notion-blue transition-all"
           value={search} onChange={e => setSearch(e.target.value)}
         />

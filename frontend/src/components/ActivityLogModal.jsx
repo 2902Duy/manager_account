@@ -161,21 +161,27 @@ export default function ActivityLogModal({
 
     return (
       <div className="mt-3 rounded-[8px] border border-whisper bg-warm-white/70 p-3 dark:border-neutral-800 dark:bg-neutral-900/60">
-        <div className="grid grid-cols-[120px_1fr_1fr] gap-3 border-b border-whisper pb-2 text-[11px] font-bold uppercase tracking-wide text-warm-gray-400 dark:border-neutral-800">
+        <div className="hidden grid-cols-[120px_1fr_1fr] gap-3 border-b border-whisper pb-2 text-[11px] font-bold uppercase tracking-wide text-warm-gray-400 dark:border-neutral-800 sm:grid">
           <span>Trường</span>
           <span>Trước</span>
           <span>Sau</span>
         </div>
         <div className="divide-y divide-whisper dark:divide-neutral-800">
           {entries.map(([field, value]) => (
-            <div key={field} className="grid grid-cols-[120px_1fr_1fr] gap-3 py-2 text-[12px]">
+            <div key={field} className="grid gap-2 py-3 text-[12px] sm:grid-cols-[120px_1fr_1fr] sm:gap-3 sm:py-2">
               <span className="font-semibold text-warm-gray-500 dark:text-neutral-400">{fieldLabels[field] || field}</span>
-              <span className="min-w-0 truncate text-red-500 line-through opacity-80" title={formatValue(field, value.old)}>
-                {formatValue(field, value.old)}
-              </span>
-              <span className="min-w-0 truncate font-semibold text-emerald-600 dark:text-emerald-400" title={formatValue(field, value.new)}>
-                {formatValue(field, value.new)}
-              </span>
+              <div className="min-w-0 rounded-[6px] bg-white px-2 py-1 dark:bg-neutral-950/40 sm:bg-transparent sm:px-0 sm:py-0 sm:dark:bg-transparent">
+                <span className="mb-0.5 block text-[10px] font-bold uppercase tracking-wide text-warm-gray-300 sm:hidden">Trước</span>
+                <span className="block min-w-0 truncate text-red-500 line-through opacity-80" title={formatValue(field, value.old)}>
+                  {formatValue(field, value.old)}
+                </span>
+              </div>
+              <div className="min-w-0 rounded-[6px] bg-white px-2 py-1 dark:bg-neutral-950/40 sm:bg-transparent sm:px-0 sm:py-0 sm:dark:bg-transparent">
+                <span className="mb-0.5 block text-[10px] font-bold uppercase tracking-wide text-warm-gray-300 sm:hidden">Sau</span>
+                <span className="block min-w-0 truncate font-semibold text-emerald-600 dark:text-emerald-400" title={formatValue(field, value.new)}>
+                  {formatValue(field, value.new)}
+                </span>
+              </div>
             </div>
           ))}
         </div>
@@ -190,9 +196,9 @@ export default function ActivityLogModal({
     const canExpand = log.action === 'update' && changesCount > 0;
 
     return (
-      <div key={log.id} className="relative flex gap-4 border-b border-whisper py-4 last:border-b-0 dark:border-neutral-800">
-        <div className={`flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-[10px] ${toneClasses[meta.tone] || toneClasses.blue}`}>
-          <Icon size={18} />
+      <div key={log.id} className="relative flex gap-3 border-b border-whisper py-4 last:border-b-0 dark:border-neutral-800 sm:gap-4">
+        <div className={`flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-[10px] sm:h-10 sm:w-10 ${toneClasses[meta.tone] || toneClasses.blue}`}>
+          <Icon size={17} />
         </div>
 
         <div className="min-w-0 flex-1">
@@ -217,7 +223,7 @@ export default function ActivityLogModal({
               </p>
             </div>
 
-            <div className="flex flex-shrink-0 items-center gap-2 text-[11px] text-warm-gray-300 dark:text-neutral-500">
+            <div className="flex flex-wrap items-center gap-2 text-[11px] text-warm-gray-300 dark:text-neutral-500 sm:flex-shrink-0">
               <span title={formatDateTime(log.created_at)}>{timeAgo(log.created_at, now)}</span>
               {canExpand && (
                 <button
@@ -263,13 +269,13 @@ export default function ActivityLogModal({
           />
         </div>
 
-        <div className="flex flex-wrap gap-2">
+        <div className="-mx-1 flex gap-2 overflow-x-auto px-1 pb-1 sm:mx-0 sm:flex-wrap sm:overflow-visible sm:px-0 sm:pb-0">
           {Object.entries(actionMeta).map(([key, meta]) => (
             <button
               key={key}
               type="button"
               onClick={() => setActionFilter(key)}
-              className={`rounded-[8px] border px-3 py-2 text-[12px] font-bold transition ${
+              className={`flex-shrink-0 rounded-[8px] border px-3 py-2 text-[12px] font-bold transition ${
                 actionFilter === key
                   ? 'border-notion-blue bg-notion-blue text-white'
                   : 'border-whisper bg-white text-warm-gray-500 hover:text-notion-blue dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-400'
@@ -281,7 +287,7 @@ export default function ActivityLogModal({
           <button
             type="button"
             onClick={fetchLogs}
-            className="flex items-center gap-1.5 rounded-[8px] border border-whisper bg-white px-3 py-2 text-[12px] font-bold text-warm-gray-500 transition hover:text-notion-blue dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-400"
+            className="flex flex-shrink-0 items-center gap-1.5 rounded-[8px] border border-whisper bg-white px-3 py-2 text-[12px] font-bold text-warm-gray-500 transition hover:text-notion-blue dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-400"
           >
             <RefreshCw size={14} className={loading ? 'animate-spin' : ''} />
             Làm mới
@@ -305,7 +311,7 @@ export default function ActivityLogModal({
           {Object.entries(groupedLogs).map(([label, items]) => (
             <section key={label}>
               <h3 className="mb-2 px-1 text-[12px] font-bold uppercase tracking-wide text-warm-gray-400">{label}</h3>
-              <div className="rounded-[10px] border border-whisper bg-white px-4 dark:border-neutral-800 dark:bg-neutral-900/30">
+              <div className="rounded-[10px] border border-whisper bg-white px-3 dark:border-neutral-800 dark:bg-neutral-900/30 sm:px-4">
                 {items.map(renderLog)}
               </div>
             </section>
