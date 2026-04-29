@@ -232,36 +232,79 @@ export default function Dashboard({ token, onLogout }) {
       case 'settings': return (
         <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 max-w-3xl">
           <h1 className="text-[32px] font-bold mb-2">Cài đặt</h1>
-          <p className="text-warm-gray-500 mb-8">Tùy chỉnh trải nghiệm và quản lý dữ liệu cá nhân.</p>
-
+          <p className="text-warm-gray-500 mb-8">Quản lý bảo mật, giao diện và dữ liệu cá nhân của bạn.</p>
+          
           <div className="grid gap-6">
+            {/* Giao diện */}
             <div className="bg-white dark:bg-neutral-800 p-6 rounded-2xl border border-whisper dark:border-neutral-700 shadow-sm">
-              <h3 className="text-lg font-bold mb-4 flex items-center gap-2"><Moon size={20} /> Hiển thị</h3>
+              <h3 className="text-[16px] font-bold mb-4 flex items-center gap-2 text-notion-black dark:text-white">
+                <Moon size={18} className="text-notion-blue" /> Chế độ hiển thị
+              </h3>
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="font-semibold">Chế độ tối (Dark Mode)</p>
-                  <p className="text-sm text-warm-gray-400">Giảm mỏi mắt khi sử dụng vào ban đêm.</p>
+                  <p className="font-semibold text-[14px]">Giao diện tối (Dark Mode)</p>
+                  <p className="text-[13px] text-warm-gray-400">Tự động điều chỉnh màu sắc phù hợp với môi trường.</p>
                 </div>
-                <button onClick={() => setDark(!dark)} className={`w-14 h-7 rounded-full transition-all relative ${dark ? 'bg-notion-blue' : 'bg-warm-white border border-whisper'}`}>
-                  <div className={`absolute top-1 w-5 h-5 rounded-full bg-white shadow-md transition-all ${dark ? 'left-8' : 'left-1'}`} />
+                <button onClick={() => setDark(!dark)} className={`w-12 h-6 rounded-full transition-all relative ${dark ? 'bg-notion-blue' : 'bg-warm-white border border-whisper'}`}>
+                  <div className={`absolute top-1 w-4 h-4 rounded-full bg-white shadow-md transition-all ${dark ? 'left-7' : 'left-1'}`} />
                 </button>
               </div>
             </div>
 
+            {/* Bảo mật */}
             <div className="bg-white dark:bg-neutral-800 p-6 rounded-2xl border border-whisper dark:border-neutral-700 shadow-sm">
-              <h3 className="text-lg font-bold mb-4 flex items-center gap-2"><Settings size={20} /> Sao lưu & Bảo mật</h3>
+              <h3 className="text-[16px] font-bold mb-4 flex items-center gap-2 text-notion-black dark:text-white">
+                <Shield size={18} className="text-emerald-500" /> Bảo mật tài khoản
+              </h3>
               <div className="space-y-6">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="font-semibold">Xuất dữ liệu</p>
-                    <p className="text-sm text-warm-gray-400">Tải về toàn bộ tài khoản dưới dạng CSV hoặc JSON.</p>
+                    <p className="font-semibold text-[14px]">Trạng thái Vault</p>
+                    <p className="text-[13px] text-warm-gray-400">Khóa kho dữ liệu ngay lập tức.</p>
                   </div>
-                  <button onClick={() => setShowImportExport(true)} className="px-5 py-2 bg-warm-white dark:bg-neutral-700 hover:bg-whisper rounded-lg font-bold transition">Quản lý</button>
+                  <button 
+                    onClick={() => isLocked ? setShowUnlockModal(true) : setIsLocked(true)}
+                    className={`px-4 py-1.5 rounded-lg text-[13px] font-bold transition-all border ${
+                      isLocked 
+                        ? 'bg-red-50 dark:bg-red-500/10 text-red-500 border-red-200 dark:border-red-500/20' 
+                        : 'bg-emerald-50 dark:bg-emerald-500/10 text-emerald-500 border-emerald-200 dark:border-emerald-500/20'
+                    }`}
+                  >
+                    {isLocked ? 'Đang khóa (Mở ngay)' : 'Đang mở (Khóa ngay)'}
+                  </button>
                 </div>
-                <div className="pt-6 border-t border-whisper dark:border-neutral-700">
-                  <p className="text-red-500 text-xs font-bold uppercase tracking-tighter mb-2">Vùng nguy hiểm</p>
-                  <button className="text-red-500 font-bold hover:underline">Xóa vĩnh viễn tài khoản của tôi</button>
+
+                <div className="flex items-center justify-between pt-4 border-t border-whisper dark:border-neutral-700">
+                  <div>
+                    <p className="font-semibold text-[14px]">Mật khẩu Master</p>
+                    <p className="text-[13px] text-warm-gray-400">Thay đổi mật khẩu đăng nhập & giải mã.</p>
+                  </div>
+                  <button 
+                    onClick={() => {
+                      // Gửi mail reset mật khẩu hoặc mở modal đổi pass
+                      window.location.href = '/forgot-password';
+                    }}
+                    className="px-4 py-1.5 bg-warm-white dark:bg-neutral-700 hover:bg-whisper rounded-lg text-[13px] font-bold transition"
+                  >
+                    Đổi mật khẩu
+                  </button>
                 </div>
+              </div>
+            </div>
+
+            {/* Dữ liệu */}
+            <div className="bg-white dark:bg-neutral-800 p-6 rounded-2xl border border-whisper dark:border-neutral-700 shadow-sm">
+              <h3 className="text-[16px] font-bold mb-4 flex items-center gap-2 text-notion-black dark:text-white">
+                <Settings size={18} className="text-warm-gray-400" /> Quản lý dữ liệu
+              </h3>
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="font-semibold text-[14px]">Sao lưu & Phục hồi</p>
+                  <p className="text-[13px] text-warm-gray-400">Tải về hoặc nhập dữ liệu từ file CSV/JSON.</p>
+                </div>
+                <button onClick={() => setShowImportExport(true)} className="px-5 py-2 bg-notion-blue text-white hover:bg-notion-blue-hover rounded-lg text-[13px] font-bold transition shadow-sm">
+                  Quản lý
+                </button>
               </div>
             </div>
           </div>

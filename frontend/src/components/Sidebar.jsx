@@ -86,27 +86,8 @@ export default function Sidebar({
 
       {/* Bottom Actions */}
       <div className="p-3 border-t border-whisper dark:border-neutral-800 space-y-1">
-        {/* Dark Mode Toggle */}
-        <button
-          onClick={() => setDark(!dark)}
-          className="w-full flex items-center gap-3 px-3 py-2.5 rounded-[8px] text-warm-gray-500 dark:text-neutral-400 hover:bg-whisper dark:hover:bg-neutral-800 transition-colors"
-        >
-          {dark ? <Sun size={20} /> : <Moon size={20} />}
-          {!isCollapsed && <span className="text-[14px] font-medium">{dark ? 'Giao diện sáng' : 'Giao diện tối'}</span>}
-        </button>
-
-        {/* Lock Status */}
-        <button
-          onClick={onLock}
-          className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-[8px] transition-colors ${isLocked ? 'text-red-500 bg-red-50 dark:bg-red-500/10' : 'text-emerald-500 hover:bg-emerald-50 dark:hover:bg-emerald-500/10'
-            }`}
-        >
-          {isLocked ? <Lock size={20} /> : <Unlock size={20} />}
-          {!isCollapsed && <span className="text-[14px] font-medium">{isLocked ? 'Đang khóa' : 'Đang mở'}</span>}
-        </button>
-
         {/* User & Logout */}
-        <div className="pt-2 mt-2 border-t border-whisper dark:border-neutral-800">
+        <div className="pt-2">
           <div className={`flex items-center gap-3 px-3 py-2 ${isCollapsed ? 'justify-center' : ''}`}>
             <div className="w-8 h-8 rounded-full bg-notion-blue/10 flex items-center justify-center text-notion-blue">
               <User size={18} />
