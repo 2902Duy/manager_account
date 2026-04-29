@@ -473,6 +473,15 @@ app.put('/api/accounts/:id', authMiddleware, async (req, res) => {
       }
     });
 
+    const oldTags = oldData.tags || [];
+    const newTags = tags || [];
+    if (JSON.stringify(oldTags) !== JSON.stringify(newTags)) {
+      changes.tags = {
+        old: oldTags,
+        new: newTags
+      };
+    }
+
     // 4. Lưu log chi tiết nếu có thay đổi
     logActivity(req.user.id, id, 'update', { 
       account_name: account,
