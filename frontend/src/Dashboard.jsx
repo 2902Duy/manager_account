@@ -145,11 +145,12 @@ export default function Dashboard({ token, onLogout }) {
     setOpenModal(true);
   };
 
-  const handleSave = async (e) => {
+  const handleSave = async (e, formOverride) => {
     e.preventDefault();
+    const payload = formOverride || form;
     try {
-      if (editingId) await axios.put(`${API_URL}/api/accounts/${editingId}`, form, { headers: { Authorization: `Bearer ${token}` } });
-      else await axios.post(`${API_URL}/api/accounts`, form, { headers: { Authorization: `Bearer ${token}` } });
+      if (editingId) await axios.put(`${API_URL}/api/accounts/${editingId}`, payload, { headers: { Authorization: `Bearer ${token}` } });
+      else await axios.post(`${API_URL}/api/accounts`, payload, { headers: { Authorization: `Bearer ${token}` } });
       setOpenModal(false);
       fetchAccounts();
     } catch (err) { alert(err.response?.data?.error || 'Lỗi lưu dữ liệu'); }
