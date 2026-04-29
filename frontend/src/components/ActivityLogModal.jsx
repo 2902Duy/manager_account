@@ -71,15 +71,20 @@ export default function ActivityLogModal({
                   {log.details?.account_name ? <span>Thao tác trên <strong>{log.details.account_name}</strong></span> : 'Thực hiện thay đổi hệ thống'}
                 </p>
                 {log.action === 'update' && log.details?.changes && (
-                  <div className="mt-2 grid grid-cols-1 gap-1">
-                    {Object.entries(log.details.changes).map(([field, val]) => (
-                      <div key={field} className="text-[11px] flex items-center gap-2 text-warm-gray-400">
-                        <span className="capitalize">{field}:</span>
-                        <span className="line-through opacity-50">{field === 'password' ? '••••' : val.old}</span>
-                        <RefreshCw size={10} />
-                        <span className="text-notion-blue dark:text-blue-400 font-medium">{field === 'password' ? '••••' : val.new}</span>
-                      </div>
-                    ))}
+                  <div className="mt-3 bg-warm-white/50 dark:bg-neutral-900/50 rounded-xl p-3 border border-whisper dark:border-neutral-800 space-y-2">
+                    <p className="text-[10px] font-bold text-warm-gray-400 uppercase tracking-wider mb-1">Chi tiết thay đổi:</p>
+                    {Object.entries(log.details.changes).map(([field, val]) => {
+                      const fieldLabels = { account_type: 'Loại', account: 'Tài khoản', password: 'Mật khẩu', information: 'Ghi chú', gmail_link: 'Email' };
+                      return (
+                        <div key={field} className="grid grid-cols-[80px_1fr] gap-2 items-start">
+                          <span className="text-[11px] font-medium text-warm-gray-400">{fieldLabels[field] || field}:</span>
+                          <div className="flex flex-col gap-0.5">
+                            <span className="text-[11px] text-red-400 line-through truncate opacity-80">{field === 'password' ? '••••••••' : (val.old || '(trống)')}</span>
+                            <span className="text-[11px] text-emerald-500 font-bold truncate">{field === 'password' ? '••••••••' : (val.new || '(trống)')}</span>
+                          </div>
+                        </div>
+                      );
+                    })}
                   </div>
                 )}
               </div>

@@ -321,8 +321,26 @@ const logActivity = async (userId, accountId, action, details = {}) => {
 // CRUD Routes — stored_accounts (cần đăng nhập)
 // ─────────────────────────────────────────
 
+// Helper dọn dẹp thùng rác > 30 ngày
+const cleanupTrash = async (userId) => {
+  try {
+    const thirtyDaysAgo = new Date();
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+    
+    await supabase
+      .from('stored_accounts')
+      .delete()
+      .eq('user_id', userId)
+      .eq('is_deleted', true)
+      .lt('deleted_at', thirtyDaysAgo.toISOString());
+  } catch (e) { console.error('Cleanup trash error:', e); }
+};
+
 // Read All — chỉ trả về accounts chưa xóa của user hiện tại
 app.get('/api/accounts', authMiddleware, async (req, res) => {
+  // Tiện tay dọn dẹp thùng rác cũ
+  cleanupTrash(req.user.id);
+
   const { data, error } = await supabase
     .from('stored_accounts')
     .select('*')
