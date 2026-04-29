@@ -9,13 +9,15 @@ import Dashboard from './Dashboard';
 function App() {
   const [token, setToken] = useState(localStorage.getItem('token') || null);
 
-  const handleLogin = (t) => {
+  const handleLogin = (t, u) => {
     localStorage.setItem('token', t);
+    localStorage.setItem('user', JSON.stringify(u));
     setToken(t);
   };
 
   const handleLogout = () => {
     localStorage.removeItem('token');
+    localStorage.removeItem('user');
     setToken(null);
   };
 

@@ -190,14 +190,29 @@ app.post('/api/auth/resend-otp', async (req, res) => {
 
 // [POST] /api/auth/forgot-password — Gửi email reset mật khẩu
 app.post('/api/auth/forgot-password', async (req, res) => {
-  const { email } = req.body;
-  if (!email) return res.status(400).json({ error: 'Cần nhập email' });
+  try {
+    const { email } = req.body;
+    if (!email) return res.status(400).json({ error: 'Cần nhập email' });
 
-  const redirectTo = `${process.env.CORS_ORIGIN || 'http://localhost:5173'}/reset-password`;
-  const { error } = await supabaseAuth.auth.resetPasswordForEmail(email, { redirectTo });
-  if (error) return res.status(400).json({ error: error.message });
+    // Làm sạch origin để tránh lỗi thừa dấu /
+    const origin = (req.headers.origin || process.env.CORS_ORIGIN || 'http://localhost:5173').replace(/\/+$/, '');
+    const redirectTo = `${origin}/reset-password`;
 
-  res.json({ message: 'Email đặt lại mật khẩu đã được gửi. Vui lòng kiểm tra hòm thư!' });
+    console.log('📬 Đang gửi yêu cầu Reset Password:');
+    console.log(' - Email:', email);
+    console.log(' - RedirectTo:', redirectTo);
+
+    const { error } = await supabaseAuth.auth.resetPasswordForEmail(email, { redirectTo });
+    if (error) {
+      console.error('❌ Supabase Auth Error:', error.message);
+      return res.status(400).json({ error: error.message });
+    }
+
+    res.json({ message: 'Email đặt lại mật khẩu đã được gửi. Vui lòng kiểm tra hòm thư!' });
+  } catch (err) {
+    console.error('🔥 Server Error:', err);
+    res.status(500).json({ error: 'Lỗi hệ thống' });
+  }
 });
 
 // [POST] /api/auth/reset-password — Đặt lại mật khẩu mới
@@ -319,6 +334,7 @@ app.post('/api/accounts/bulk', authMiddleware, async (req, res) => {
 // Update
 app.put('/api/accounts/:id', authMiddleware, async (req, res) => {
   try {
+    const id = parseInt(req.params.id);
     const validated = accountSchema.parse(req.body);
     const { account_type, account, password, information, gmail_link, tags } = validated;
 

@@ -16,7 +16,7 @@ export default function Login({ onLogin }) {
     setLoading(true);
     try {
       const res = await axios.post(`${API_URL}/api/auth/login`, { email, password });
-      onLogin(res.data.access_token);
+      onLogin(res.data.access_token, res.data.user);
     } catch (err) {
       setError(err.response?.data?.error || 'Lỗi kết nối máy chủ');
     } finally {

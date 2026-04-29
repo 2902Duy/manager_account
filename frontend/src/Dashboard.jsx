@@ -107,7 +107,16 @@ export default function Dashboard({ token, onLogout }) {
     setUnlockError('');
     try {
       const userStr = localStorage.getItem('user');
-      const email = userStr ? JSON.parse(userStr).email : '';
+      if (!userStr) {
+        throw new Error('Không tìm thấy thông tin phiên đăng nhập. Vui lòng đăng nhập lại.');
+      }
+      const user = JSON.parse(userStr);
+      const email = user.email;
+
+      if (!email) {
+        throw new Error('Không tìm thấy email người dùng.');
+      }
+
       await axios.post(`${API_URL}/api/auth/login`, { email, password: unlockPassword });
       
       setIsLocked(false);
@@ -125,7 +134,8 @@ export default function Dashboard({ token, onLogout }) {
         setPendingAction(null);
       }
     } catch (err) {
-      setUnlockError('Mật khẩu không chính xác');
+      console.error('Unlock error:', err);
+      setUnlockError(err.response?.data?.error || err.message || 'Mật khẩu không chính xác');
     }
   };
 
