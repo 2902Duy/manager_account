@@ -160,25 +160,25 @@ export default function ActivityLogModal({
     if (entries.length === 0) return null;
 
     return (
-      <div className="mt-3 rounded-[8px] border border-whisper bg-warm-white/70 p-3 dark:border-neutral-800 dark:bg-neutral-900/60">
-        <div className="hidden grid-cols-[120px_1fr_1fr] gap-3 border-b border-whisper pb-2 text-[11px] font-bold uppercase tracking-wide text-warm-gray-400 dark:border-neutral-800 sm:grid">
+      <div className="mt-3 max-w-full overflow-hidden rounded-[8px] border border-whisper bg-warm-white/70 p-3 dark:border-neutral-800 dark:bg-neutral-900/60">
+        <div className="hidden grid-cols-[120px_minmax(0,1fr)_minmax(0,1fr)] gap-3 border-b border-whisper pb-2 text-[11px] font-bold uppercase tracking-wide text-warm-gray-400 dark:border-neutral-800 lg:grid">
           <span>Trường</span>
           <span>Trước</span>
           <span>Sau</span>
         </div>
         <div className="divide-y divide-whisper dark:divide-neutral-800">
           {entries.map(([field, value]) => (
-            <div key={field} className="grid gap-2 py-3 text-[12px] sm:grid-cols-[120px_1fr_1fr] sm:gap-3 sm:py-2">
-              <span className="font-semibold text-warm-gray-500 dark:text-neutral-400">{fieldLabels[field] || field}</span>
-              <div className="min-w-0 rounded-[6px] bg-white px-2 py-1 dark:bg-neutral-950/40 sm:bg-transparent sm:px-0 sm:py-0 sm:dark:bg-transparent">
-                <span className="mb-0.5 block text-[10px] font-bold uppercase tracking-wide text-warm-gray-300 sm:hidden">Trước</span>
-                <span className="block min-w-0 truncate text-red-500 line-through opacity-80" title={formatValue(field, value.old)}>
+            <div key={field} className="grid min-w-0 gap-2 py-3 text-[12px] lg:grid-cols-[120px_minmax(0,1fr)_minmax(0,1fr)] lg:gap-3 lg:py-2">
+              <span className="min-w-0 font-semibold text-warm-gray-500 dark:text-neutral-400">{fieldLabels[field] || field}</span>
+              <div className="min-w-0 rounded-[6px] bg-white px-2 py-1 dark:bg-neutral-950/40 lg:bg-transparent lg:px-0 lg:py-0 lg:dark:bg-transparent">
+                <span className="mb-0.5 block text-[10px] font-bold uppercase tracking-wide text-warm-gray-300 lg:hidden">Trước</span>
+                <span className="block min-w-0 break-words text-red-500 line-through opacity-80 lg:truncate" title={formatValue(field, value.old)}>
                   {formatValue(field, value.old)}
                 </span>
               </div>
-              <div className="min-w-0 rounded-[6px] bg-white px-2 py-1 dark:bg-neutral-950/40 sm:bg-transparent sm:px-0 sm:py-0 sm:dark:bg-transparent">
-                <span className="mb-0.5 block text-[10px] font-bold uppercase tracking-wide text-warm-gray-300 sm:hidden">Sau</span>
-                <span className="block min-w-0 truncate font-semibold text-emerald-600 dark:text-emerald-400" title={formatValue(field, value.new)}>
+              <div className="min-w-0 rounded-[6px] bg-white px-2 py-1 dark:bg-neutral-950/40 lg:bg-transparent lg:px-0 lg:py-0 lg:dark:bg-transparent">
+                <span className="mb-0.5 block text-[10px] font-bold uppercase tracking-wide text-warm-gray-300 lg:hidden">Sau</span>
+                <span className="block min-w-0 break-words font-semibold text-emerald-600 dark:text-emerald-400 lg:truncate" title={formatValue(field, value.new)}>
                   {formatValue(field, value.new)}
                 </span>
               </div>
@@ -196,12 +196,12 @@ export default function ActivityLogModal({
     const canExpand = log.action === 'update' && changesCount > 0;
 
     return (
-      <div key={log.id} className="relative flex gap-3 border-b border-whisper py-4 last:border-b-0 dark:border-neutral-800 sm:gap-4">
+      <div key={log.id} className="relative flex max-w-full gap-3 border-b border-whisper py-4 last:border-b-0 dark:border-neutral-800 sm:gap-4">
         <div className={`flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-[10px] sm:h-10 sm:w-10 ${toneClasses[meta.tone] || toneClasses.blue}`}>
           <Icon size={17} />
         </div>
 
-        <div className="min-w-0 flex-1">
+        <div className="min-w-0 flex-1 overflow-hidden">
           <div className="flex flex-col gap-1 sm:flex-row sm:items-start sm:justify-between">
             <div className="min-w-0">
               <div className="flex flex-wrap items-center gap-2">
@@ -212,7 +212,7 @@ export default function ActivityLogModal({
                   </span>
                 )}
               </div>
-              <p className="mt-1 truncate text-[13px] text-warm-gray-500 dark:text-neutral-400">
+              <p className="mt-1 min-w-0 break-words text-[13px] text-warm-gray-500 dark:text-neutral-400 sm:truncate">
                 {log.details?.account_name ? (
                   <>Tài khoản <strong className="text-notion-black dark:text-neutral-200">{log.details.account_name}</strong></>
                 ) : log.details?.bulk ? (
@@ -245,7 +245,7 @@ export default function ActivityLogModal({
   };
 
   const content = (
-    <div className={inline ? '' : 'max-h-[80vh] overflow-y-auto'}>
+    <div className={inline ? 'max-w-full overflow-hidden' : 'max-h-[80vh] max-w-full overflow-y-auto overflow-x-hidden'}>
       {!inline && (
         <div className="mb-5 flex items-center justify-between">
           <div className="flex items-center gap-2">
@@ -311,7 +311,7 @@ export default function ActivityLogModal({
           {Object.entries(groupedLogs).map(([label, items]) => (
             <section key={label}>
               <h3 className="mb-2 px-1 text-[12px] font-bold uppercase tracking-wide text-warm-gray-400">{label}</h3>
-              <div className="rounded-[10px] border border-whisper bg-white px-3 dark:border-neutral-800 dark:bg-neutral-900/30 sm:px-4">
+              <div className="max-w-full overflow-hidden rounded-[10px] border border-whisper bg-white px-3 dark:border-neutral-800 dark:bg-neutral-900/30 sm:px-4">
                 {items.map(renderLog)}
               </div>
             </section>

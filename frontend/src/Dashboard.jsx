@@ -256,7 +256,7 @@ export default function Dashboard({ token, onLogout }) {
     switch (activeTab) {
       case 'activity': return (
         <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
-          <h1 className="text-[32px] font-bold mb-2">Nhật ký hoạt động</h1>
+          <h1 className="text-[28px] sm:text-[32px] font-bold mb-2">Nhật ký hoạt động</h1>
           <p className="text-warm-gray-500 mb-8">Theo dõi các thay đổi và truy cập vào kho dữ liệu.</p>
           <ActivityLogModal inline token={token} />
         </div>
