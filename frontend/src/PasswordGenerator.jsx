@@ -8,21 +8,21 @@ const CHAR_SETS = {
   symbols: '!@#$%^&*()_+-=[]{}|;:,.<>?',
 };
 
-function getStrength(password) {
-  if (!password) return { label: 'Trống', score: 0, color: 'bg-warm-gray-300 dark:bg-neutral-600' };
+export function getStrength(password) {
+  if (!password) return { label: 'Trống', score: 0, color: 'bg-warm-gray-300 dark:bg-neutral-600', text: 'text-warm-gray-300 dark:text-neutral-600' };
   let score = 0;
   if (password.length >= 8) score++;
   if (password.length >= 12) score++;
-  if (password.length >= 20) score++;
+  if (password.length >= 16) score++;
   if (/[A-Z]/.test(password)) score++;
   if (/[a-z]/.test(password)) score++;
   if (/[0-9]/.test(password)) score++;
   if (/[^A-Za-z0-9]/.test(password)) score++;
 
-  if (score <= 2) return { label: 'Yếu', score: 1, color: 'bg-red-400' };
-  if (score <= 4) return { label: 'Trung bình', score: 2, color: 'bg-amber-400' };
-  if (score <= 5) return { label: 'Mạnh', score: 3, color: 'bg-emerald-400' };
-  return { label: 'Rất mạnh', score: 4, color: 'bg-emerald-500' };
+  if (score <= 2) return { label: 'Yếu', score: 1, color: 'bg-red-400', text: 'text-red-400' };
+  if (score <= 4) return { label: 'Trung bình', score: 2, color: 'bg-amber-400', text: 'text-amber-500' };
+  if (score <= 6) return { label: 'Mạnh', score: 3, color: 'bg-emerald-400', text: 'text-emerald-500' };
+  return { label: 'Rất mạnh', score: 4, color: 'bg-emerald-500', text: 'text-emerald-600' };
 }
 
 export default function PasswordGenerator({ onUsePassword }) {

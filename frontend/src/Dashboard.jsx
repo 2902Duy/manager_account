@@ -1,10 +1,18 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { 
-  Eye, EyeOff, Trash2, Plus, Search, Copy, Check, LogOut, Edit2, Sun, Moon, 
-  Pin, PinOff, Download, Upload, Clock, RotateCcw, X, Inbox, Package, Trash, RefreshCw
+  Plus, Search, Pin, Inbox
 } from 'lucide-react';
-import PasswordGenerator from './PasswordGenerator';
+import { AnimatePresence } from 'framer-motion';
+
+// Components
+import Navbar from './components/Navbar';
+import AccountTable from './components/AccountTable';
+import AddEditModal from './components/AddEditModal';
+import TrashModal from './components/TrashModal';
+import ActivityLogModal from './components/ActivityLogModal';
+import ImportExportModal from './components/ImportExportModal';
+import UnlockModal from './components/UnlockModal';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
 
@@ -15,29 +23,52 @@ export default function Dashboard({ token, onLogout }) {
   const [editingId, setEditingId] = useState(null);
   const [search, setSearch] = useState('');
   const [copied, setCopied] = useState(null);
-  const [form, setForm] = useState({ account_type: 'Game', account: '', password: '', information: '', gmail_link: '' });
+  const [form, setForm] = useState({ account_type: 'Game', account: '', password: '', information: '', gmail_link: '', tags: [] });
 
   // Dark mode
   const [dark, setDark] = useState(() => localStorage.getItem('theme') === 'dark');
+
+  // Master Password / Locked state
+  const [isLocked, setIsLocked] = useState(true);
+  const [showUnlockModal, setShowUnlockModal] = useState(false);
+  const [unlockPassword, setUnlockPassword] = useState('');
+  const [unlockError, setUnlockError] = useState('');
+  const [pendingAction, setPendingAction] = useState(null); // { type: 'view'|'copy', id, text }
+
+  // Modals visibility
+  const [showTrash, setShowTrash] = useState(false);
+  const [trashedAccounts, setTrashedAccounts] = useState([]);
+  const [showActivityLog, setShowActivityLog] = useState(false);
+  const [activityLogs, setActivityLogs] = useState([]);
+  const [showImportExport, setShowImportExport] = useState(false);
 
   useEffect(() => {
     document.documentElement.classList.toggle('dark', dark);
     localStorage.setItem('theme', dark ? 'dark' : 'light');
   }, [dark]);
 
-  // Trash
-  const [showTrash, setShowTrash] = useState(false);
-  const [trashedAccounts, setTrashedAccounts] = useState([]);
+  // Auto-lock after 5 minutes of inactivity
+  useEffect(() => {
+    let timer;
+    const resetTimer = () => {
+      clearTimeout(timer);
+      timer = setTimeout(() => {
+        setIsLocked(true);
+      }, 5 * 60 * 1000); // 5 minutes
+    };
 
-  // Activity Log
-  const [showActivityLog, setShowActivityLog] = useState(false);
-  const [activityLogs, setActivityLogs] = useState([]);
+    if (!isLocked) {
+      window.addEventListener('mousemove', resetTimer);
+      window.addEventListener('keydown', resetTimer);
+      resetTimer();
+    }
 
-  // Import/Export
-  const [showImportExport, setShowImportExport] = useState(false);
-
-  // Toolbar menu
-  const [showToolMenu, setShowToolMenu] = useState(false);
+    return () => {
+      window.removeEventListener('mousemove', resetTimer);
+      window.removeEventListener('keydown', resetTimer);
+      clearTimeout(timer);
+    };
+  }, [isLocked]);
 
   const fetchAccounts = async () => {
     try {
@@ -52,12 +83,50 @@ export default function Dashboard({ token, onLogout }) {
     fetchAccounts();
   }, []);
 
-  const togglePwd = (id) => setShowPwd(prev => ({ ...prev, [id]: !prev[id] }));
+  const checkUnlock = (action) => {
+    if (!isLocked) return true;
+    setPendingAction(action);
+    setShowUnlockModal(true);
+    return false;
+  };
+
+  const togglePwd = (id) => {
+    if (!checkUnlock({ type: 'view', id })) return;
+    setShowPwd(prev => ({ ...prev, [id]: !prev[id] }));
+  };
 
   const handleCopy = (text, id) => {
+    if (!checkUnlock({ type: 'copy', id, text })) return;
     navigator.clipboard.writeText(text);
     setCopied(id);
     setTimeout(() => setCopied(null), 1500);
+  };
+
+  const handleUnlock = async (e) => {
+    e.preventDefault();
+    setUnlockError('');
+    try {
+      const userStr = localStorage.getItem('user');
+      const email = userStr ? JSON.parse(userStr).email : '';
+      await axios.post(`${API_URL}/api/auth/login`, { email, password: unlockPassword });
+      
+      setIsLocked(false);
+      setShowUnlockModal(false);
+      setUnlockPassword('');
+      
+      if (pendingAction) {
+        if (pendingAction.type === 'view') {
+          setShowPwd(prev => ({ ...prev, [pendingAction.id]: !prev[pendingAction.id] }));
+        } else if (pendingAction.type === 'copy') {
+          navigator.clipboard.writeText(pendingAction.text);
+          setCopied(pendingAction.id);
+          setTimeout(() => setCopied(null), 1500);
+        }
+        setPendingAction(null);
+      }
+    } catch (err) {
+      setUnlockError('Mật khẩu không chính xác');
+    }
   };
 
   const handleDelete = async (id) => {
@@ -67,7 +136,7 @@ export default function Dashboard({ token, onLogout }) {
   };
 
   const handleOpenAdd = () => {
-    setForm({ account_type: 'Game', account: '', password: '', information: '', gmail_link: '' });
+    setForm({ account_type: 'Game', account: '', password: '', information: '', gmail_link: '', tags: [] });
     setEditingId(null);
     setOpenModal(true);
   };
@@ -78,7 +147,8 @@ export default function Dashboard({ token, onLogout }) {
       account: acc.account || '',
       password: acc.password || '',
       information: acc.information || '',
-      gmail_link: acc.gmail_link || ''
+      gmail_link: acc.gmail_link || '',
+      tags: acc.tags || []
     });
     setEditingId(acc.id);
     setOpenModal(true);
@@ -86,34 +156,21 @@ export default function Dashboard({ token, onLogout }) {
 
   const handleSave = async (e) => {
     e.preventDefault();
-    if (editingId) {
-      await axios.put(`${API_URL}/api/accounts/${editingId}`, form, { headers: { Authorization: `Bearer ${token}` } });
-    } else {
-      await axios.post(`${API_URL}/api/accounts`, form, { headers: { Authorization: `Bearer ${token}` } });
+    try {
+      if (editingId) {
+        await axios.put(`${API_URL}/api/accounts/${editingId}`, form, { headers: { Authorization: `Bearer ${token}` } });
+      } else {
+        await axios.post(`${API_URL}/api/accounts`, form, { headers: { Authorization: `Bearer ${token}` } });
+      }
+      setOpenModal(false);
+      setForm({ account_type: 'Game', account: '', password: '', information: '', gmail_link: '', tags: [] });
+      setEditingId(null);
+      fetchAccounts();
+    } catch (err) {
+      alert(err.response?.data?.error || 'Có lỗi xảy ra');
     }
-    setOpenModal(false);
-    setForm({ account_type: 'Game', account: '', password: '', information: '', gmail_link: '' });
-    setEditingId(null);
-    fetchAccounts();
   };
 
-  // Lọc tài khoản theo từ khóa
-  const filtered = accounts.filter(acc =>
-    [acc.account_type, acc.account, acc.information, acc.gmail_link]
-      .join(' ').toLowerCase().includes(search.toLowerCase())
-  );
-
-  // Nhóm theo loại — pinned accounts đứng đầu
-  const pinned = filtered.filter(a => a.is_pinned);
-  const unpinned = filtered.filter(a => !a.is_pinned);
-  const grouped = unpinned.reduce((g, acc) => {
-    const type = acc.account_type || 'Khác';
-    if (!g[type]) g[type] = [];
-    g[type].push(acc);
-    return g;
-  }, {});
-
-  // ─── Pin Toggle ───
   const handlePin = async (id, currentPin) => {
     try {
       await axios.patch(`${API_URL}/api/accounts/${id}/pin`, { is_pinned: !currentPin }, { headers: { Authorization: `Bearer ${token}` } });
@@ -121,7 +178,6 @@ export default function Dashboard({ token, onLogout }) {
     } catch (e) { console.error(e); }
   };
 
-  // ─── Trash Functions ───
   const fetchTrash = async () => {
     try {
       const res = await axios.get(`${API_URL}/api/accounts/trash`, { headers: { Authorization: `Bearer ${token}` } });
@@ -141,7 +197,6 @@ export default function Dashboard({ token, onLogout }) {
     fetchTrash();
   };
 
-  // ─── Activity Log ───
   const fetchActivityLogs = async () => {
     try {
       const res = await axios.get(`${API_URL}/api/activity-logs`, { headers: { Authorization: `Bearer ${token}` } });
@@ -149,7 +204,6 @@ export default function Dashboard({ token, onLogout }) {
     } catch (e) { console.error(e); }
   };
 
-  // ─── Export ───
   const handleExport = (format) => {
     if (format === 'json') {
       const data = accounts.map(({ account_type, account, password, information, gmail_link }) => ({ account_type, account, password, information, gmail_link }));
@@ -168,24 +222,23 @@ export default function Dashboard({ token, onLogout }) {
     setShowImportExport(false);
   };
 
-  // ─── Import ───
   const handleImportFile = async (e) => {
     const file = e.target.files[0];
     if (!file) return;
     const text = await file.text();
     let items = [];
-    if (file.name.endsWith('.json')) {
-      items = JSON.parse(text);
-    } else {
-      const lines = text.split('\n').filter(l => l.trim());
-      lines.shift(); // remove header
-      items = lines.map(line => {
-        const cols = line.match(/(".*?"|[^,]+)/g)?.map(c => c.replace(/^"|"$/g, '').replace(/""/g, '"')) || [];
-        return { account_type: cols[0]||'Khác', account: cols[1]||'', password: cols[2]||'', information: cols[3]||'', gmail_link: cols[4]||'' };
-      });
-    }
-    if (items.length === 0) return alert('Không tìm thấy dữ liệu trong file.');
     try {
+      if (file.name.endsWith('.json')) {
+        items = JSON.parse(text);
+      } else {
+        const lines = text.split('\n').filter(l => l.trim());
+        lines.shift();
+        items = lines.map(line => {
+          const cols = line.match(/(".*?"|[^,]+)/g)?.map(c => c.replace(/^"|"$/g, '').replace(/""/g, '"')) || [];
+          return { account_type: cols[0]||'Khác', account: cols[1]||'', password: cols[2]||'', information: cols[3]||'', gmail_link: cols[4]||'' };
+        });
+      }
+      if (items.length === 0) return alert('Không tìm thấy dữ liệu trong file.');
       await axios.post(`${API_URL}/api/accounts/bulk`, { accounts: items }, { headers: { Authorization: `Bearer ${token}` } });
       alert(`Đã nhập ${items.length} tài khoản thành công!`);
       fetchAccounts();
@@ -199,35 +252,34 @@ export default function Dashboard({ token, onLogout }) {
   const actionColors = { create: 'text-emerald-500', update: 'text-notion-blue', delete: 'text-red-400', restore: 'text-amber-500', pin: 'text-purple-500', unpin: 'text-warm-gray-300' };
   const timeAgo = (d) => { const s = Math.floor((Date.now() - new Date(d)) / 1000); if (s < 60) return 'Vừa xong'; if (s < 3600) return `${Math.floor(s/60)} phút trước`; if (s < 86400) return `${Math.floor(s/3600)} giờ trước`; return `${Math.floor(s/86400)} ngày trước`; };
 
+  // Filter & Group logic
+  const filtered = accounts.filter(acc => {
+    const searchLower = search.toLowerCase();
+    const matchBasic = [acc.account_type, acc.account, acc.information, acc.gmail_link]
+      .join(' ').toLowerCase().includes(searchLower);
+    const matchTags = (acc.tags || []).some(tag => tag.toLowerCase().includes(searchLower));
+    return matchBasic || matchTags;
+  });
+  const pinned = filtered.filter(a => a.is_pinned);
+  const unpinned = filtered.filter(a => !a.is_pinned);
+  const grouped = unpinned.reduce((g, acc) => {
+    const type = acc.account_type || 'Khác';
+    if (!g[type]) g[type] = [];
+    g[type].push(acc);
+    return g;
+  }, {});
+
   return (
     <div className="w-full min-h-screen bg-notion-white dark:bg-[#191919] text-notion-black dark:text-neutral-100 pb-24 overflow-x-hidden">
-      {/* Thanh điều hướng */}
-      <nav className="flex justify-between items-center h-[54px] px-4 sm:px-6 border-b border-whisper dark:border-neutral-800 bg-notion-white dark:bg-[#202020] sticky top-0 z-10">
-        <div className="flex items-center gap-2.5 cursor-pointer">
-          <img src="/logo.png" alt="Account Vault" className="w-[30px] h-[30px] sm:w-[34px] sm:h-[34px] object-contain" />
-          <span className="text-[14px] sm:text-[15px] font-semibold text-notion-black dark:text-neutral-100">Account Vault</span>
-        </div>
-        <div className="flex items-center gap-1">
-          <button onClick={() => setDark(!dark)} className="p-2 rounded-[6px] text-warm-gray-500 dark:text-neutral-400 hover:bg-warm-white dark:hover:bg-neutral-800 transition" title={dark ? 'Chế độ sáng' : 'Chế độ tối'}>
-            {dark ? <Sun size={16} /> : <Moon size={16} />}
-          </button>
-          <button onClick={() => { setShowActivityLog(true); fetchActivityLogs(); }} className="p-2 rounded-[6px] text-warm-gray-500 dark:text-neutral-400 hover:bg-warm-white dark:hover:bg-neutral-800 transition" title="Lịch sử">
-            <Clock size={16} />
-          </button>
-          <button onClick={() => { setShowTrash(true); fetchTrash(); }} className="relative p-2 rounded-[6px] text-warm-gray-500 dark:text-neutral-400 hover:bg-warm-white dark:hover:bg-neutral-800 transition" title="Thùng rác">
-            <Trash2 size={16} />
-          </button>
-          <button onClick={onLogout} className="flex items-center gap-1.5 text-[13px] sm:text-[14px] font-medium text-warm-gray-500 dark:text-neutral-400 hover:text-notion-black dark:hover:text-white transition px-3 py-1.5 rounded-[6px] hover:bg-warm-white dark:hover:bg-neutral-800">
-            <LogOut size={15} />
-            <span className="hidden sm:inline">Đăng xuất</span>
-          </button>
-        </div>
-      </nav>
+      <Navbar 
+        dark={dark} setDark={setDark} 
+        onShowActivity={() => { setShowActivityLog(true); fetchActivityLogs(); }} 
+        onShowTrash={() => { setShowTrash(true); fetchTrash(); }} 
+        isLocked={isLocked} setIsLocked={setIsLocked} 
+        onLogout={onLogout} 
+      />
 
-      {/* Nội dung chính */}
       <div className="max-w-[1200px] mx-auto px-4 sm:px-[60px] pt-8 sm:pt-[56px]">
-        
-        {/* Phần tiêu đề */}
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-end mb-6 sm:mb-8 gap-4">
           <div className="w-full sm:w-auto">
             <h1 className="text-[32px] sm:text-[44px] font-bold tracking-[-1.5px] leading-tight text-notion-black dark:text-white">
@@ -239,7 +291,7 @@ export default function Dashboard({ token, onLogout }) {
           </div>
           <div className="flex gap-2 w-full sm:w-auto">
             <button onClick={() => setShowImportExport(true)} className="flex-1 sm:flex-none flex justify-center items-center gap-1.5 border border-whisper dark:border-neutral-700 text-warm-gray-500 dark:text-neutral-400 hover:text-notion-black dark:hover:text-white px-3 py-[10px] sm:py-[8px] rounded-[8px] sm:rounded-[6px] text-[14px] font-medium transition hover:bg-warm-white dark:hover:bg-neutral-800">
-              <Download size={14}/>Xuất/Nhập
+              Xuất/Nhập
             </button>
             <button onClick={handleOpenAdd} className="flex-1 sm:flex-none flex justify-center items-center gap-1.5 bg-notion-blue hover:bg-notion-blue-hover text-white px-4 py-[10px] sm:py-[8px] rounded-[8px] sm:rounded-[6px] text-[15px] font-semibold transition active:scale-[0.98] shadow-sm">
               <Plus size={16}/>Thêm mới
@@ -247,21 +299,36 @@ export default function Dashboard({ token, onLogout }) {
           </div>
         </div>
 
-        {/* Thanh tìm kiếm */}
-        <div className="relative mb-6">
+        <div className="relative mb-4">
           <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-warm-gray-300" />
           <input
             type="text"
-            placeholder="Tìm kiếm tài khoản..."
+            placeholder="Tìm kiếm tài khoản hoặc #tag..."
             className="w-full bg-warm-white dark:bg-neutral-800 border border-whisper dark:border-neutral-700 rounded-[8px] pl-9 pr-4 py-[9px] text-[14px] text-notion-black dark:text-neutral-100 placeholder:text-warm-gray-300 dark:placeholder:text-neutral-500 focus:outline-none focus:ring-2 focus:ring-notion-blue/30 focus:border-notion-blue transition"
             value={search} onChange={e => setSearch(e.target.value)}
           />
-          {search && (
-            <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[12px] text-warm-gray-300">
-              {filtered.length} kết quả
-            </span>
-          )}
         </div>
+
+        {/* Tag Filters */}
+        {accounts.length > 0 && (
+          <div className="flex flex-wrap gap-2 mb-8 items-center">
+            <button 
+              onClick={() => setSearch('')}
+              className={`px-3 py-1 rounded-full text-[12px] font-medium transition ${search === '' ? 'bg-notion-blue text-white' : 'bg-warm-white dark:bg-neutral-800 text-warm-gray-500 hover:bg-whisper'}`}
+            >
+              Tất cả
+            </button>
+            {Array.from(new Set(accounts.flatMap(a => a.tags || []))).map(tag => (
+              <button
+                key={tag}
+                onClick={() => setSearch(tag)}
+                className={`px-3 py-1 rounded-full text-[12px] font-medium transition ${search === tag ? 'bg-notion-blue text-white' : 'bg-warm-white dark:bg-neutral-800 text-warm-gray-500 hover:bg-whisper'}`}
+              >
+                #{tag}
+              </button>
+            ))}
+          </div>
+        )}
 
         {/* Pinned Accounts */}
         {pinned.length > 0 && (
@@ -273,59 +340,27 @@ export default function Dashboard({ token, onLogout }) {
               </div>
               <span className="text-[12px] text-warm-gray-300 dark:text-neutral-500">{pinned.length} tài khoản</span>
             </div>
-            <div className="w-full bg-notion-white dark:bg-[#252525] border border-whisper dark:border-neutral-800 rounded-[10px] shadow-whisper overflow-hidden">
-              <div className="overflow-x-auto w-full">
-                <table className="w-full min-w-[650px] text-left text-[14px] border-collapse table-fixed">
-                  <thead className="bg-[#fafaf9] dark:bg-[#2a2a2a] text-warm-gray-500 dark:text-neutral-400 text-[12px] uppercase tracking-[0.5px]">
-                    <tr>
-                      <th className="px-4 py-2.5 font-semibold border-b border-whisper dark:border-neutral-700 w-[25%]">Tài khoản</th>
-                      <th className="px-4 py-2.5 font-semibold border-b border-whisper dark:border-neutral-700 w-[22%]">Mật khẩu</th>
-                      <th className="px-4 py-2.5 font-semibold border-b border-whisper dark:border-neutral-700 w-[22%]">Ghi chú</th>
-                      <th className="px-4 py-2.5 font-semibold border-b border-whisper dark:border-neutral-700 w-[22%]">Gmail liên kết</th>
-                      <th className="px-4 py-2.5 font-semibold border-b border-whisper dark:border-neutral-700 w-[9%] text-right"></th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {pinned.map(acc => (
-                      <tr key={acc.id} className="hover:bg-warm-white/60 dark:hover:bg-neutral-800/60 transition group align-top border-b border-whisper dark:border-neutral-800 last:border-b-0">
-                        <td className="px-4 py-3 font-medium text-[14px] text-notion-black dark:text-neutral-100 truncate" title={acc.account}>{acc.account}</td>
-                        <td className="px-4 py-3">
-                          <div className="flex items-center gap-1.5 overflow-hidden">
-                            <span className="font-mono text-[13px] text-warm-gray-500 dark:text-neutral-400 bg-warm-white dark:bg-neutral-800 px-1.5 py-[2px] rounded-[4px] truncate">{showPwd[acc.id] ? acc.password : '••••••••'}</span>
-                            <div className="flex flex-shrink-0">
-                              <button onClick={() => togglePwd(acc.id)} className="text-warm-gray-300 dark:text-neutral-500 hover:text-warm-gray-500 dark:hover:text-neutral-300 transition p-1 rounded-[4px]">{showPwd[acc.id] ? <EyeOff size={14}/> : <Eye size={14}/>}</button>
-                              <button onClick={() => handleCopy(acc.password, acc.id)} className="text-warm-gray-300 dark:text-neutral-500 hover:text-notion-blue transition p-1 rounded-[4px]">{copied === acc.id ? <Check size={14} className="text-green-500" /> : <Copy size={14}/>}</button>
-                            </div>
-                          </div>
-                        </td>
-                        <td className="px-4 py-3 text-warm-gray-500 dark:text-neutral-400 truncate text-[13px]">{acc.information || '—'}</td>
-                        <td className="px-4 py-3 text-warm-gray-500 dark:text-neutral-400 truncate text-[13px]">{acc.gmail_link || '—'}</td>
-                        <td className="px-3 py-3 text-right">
-                          <div className="flex items-center justify-end gap-1 opacity-100 sm:opacity-0 group-hover:opacity-100 transition">
-                            <button onClick={() => handlePin(acc.id, true)} className="text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-500/10 transition p-1.5 rounded-[6px]" title="Bỏ ghim"><PinOff size={15}/></button>
-                            <button onClick={() => handleEdit(acc)} className="text-warm-gray-300 dark:text-neutral-500 hover:bg-notion-blue/10 hover:text-notion-blue transition p-1.5 rounded-[6px]" title="Sửa"><Edit2 size={15}/></button>
-                            <button onClick={() => handleDelete(acc.id)} className="text-warm-gray-300 dark:text-neutral-500 hover:bg-red-50 dark:hover:bg-red-500/10 hover:text-red-500 transition p-1.5 rounded-[6px]" title="Xóa"><Trash2 size={15}/></button>
-                          </div>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
+            <AccountTable 
+              accounts={pinned} 
+              showPwd={showPwd} 
+              onTogglePwd={togglePwd} 
+              onCopy={handleCopy} 
+              copied={copied} 
+              onPin={handlePin} 
+              onEdit={handleEdit} 
+              onDelete={handleDelete}
+              isPinnedTable={true}
+            />
           </div>
         )}
 
-        {/* Bảng dữ liệu — nhóm theo loại */}
+        {/* Grouped Accounts */}
         {Object.keys(grouped).length === 0 && pinned.length === 0 ? (
           <div className="text-center py-16 border border-whisper dark:border-neutral-800 rounded-[12px] bg-warm-white/50 dark:bg-neutral-800/30">
             <div className="flex justify-center mb-3">
-              <div className="w-12 h-12 bg-warm-white dark:bg-neutral-800 rounded-full flex items-center justify-center text-warm-gray-300 dark:text-neutral-600">
-                <Inbox size={32} strokeWidth={1.5} />
-              </div>
+              <Inbox size={32} className="text-warm-gray-300 dark:text-neutral-600" />
             </div>
             <p className="text-[15px] text-warm-gray-500 dark:text-neutral-400 font-medium">Chưa có tài khoản nào</p>
-            <p className="text-[13px] text-warm-gray-300 dark:text-neutral-500 mt-1">Bấm "Thêm mới" để bắt đầu lưu trữ.</p>
           </div>
         ) : (
           Object.entries(grouped).map(([type, items]) => (
@@ -334,238 +369,72 @@ export default function Dashboard({ token, onLogout }) {
                 <span className="inline-block px-2 py-[3px] bg-badge-bg dark:bg-blue-500/10 text-badge-text dark:text-blue-400 rounded-full text-[11px] font-bold tracking-[0.5px] uppercase">{type}</span>
                 <span className="text-[12px] text-warm-gray-300 dark:text-neutral-500">{items.length} tài khoản</span>
               </div>
-              <div className="w-full bg-notion-white dark:bg-[#252525] border border-whisper dark:border-neutral-800 rounded-[10px] shadow-whisper overflow-hidden">
-                <div className="overflow-x-auto w-full">
-                  <table className="w-full min-w-[650px] text-left text-[14px] border-collapse table-fixed">
-                    <thead className="bg-[#fafaf9] dark:bg-[#2a2a2a] text-warm-gray-500 dark:text-neutral-400 text-[12px] uppercase tracking-[0.5px]">
-                      <tr>
-                        <th className="px-4 py-2.5 font-semibold border-b border-whisper dark:border-neutral-700 w-[25%]">Tài khoản</th>
-                        <th className="px-4 py-2.5 font-semibold border-b border-whisper dark:border-neutral-700 w-[22%]">Mật khẩu</th>
-                        <th className="px-4 py-2.5 font-semibold border-b border-whisper dark:border-neutral-700 w-[22%]">Ghi chú</th>
-                        <th className="px-4 py-2.5 font-semibold border-b border-whisper dark:border-neutral-700 w-[22%]">Gmail liên kết</th>
-                        <th className="px-4 py-2.5 font-semibold border-b border-whisper dark:border-neutral-700 w-[9%] text-right"></th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {items.map(acc => (
-                        <tr key={acc.id} className="hover:bg-warm-white/60 dark:hover:bg-neutral-800/60 transition group align-top border-b border-whisper dark:border-neutral-800 last:border-b-0">
-                          <td className="px-4 py-3 font-medium text-[14px] text-notion-black dark:text-neutral-100 truncate" title={acc.account}>{acc.account}</td>
-                          <td className="px-4 py-3">
-                            <div className="flex items-center gap-1.5 overflow-hidden">
-                              <span className="font-mono text-[13px] text-warm-gray-500 dark:text-neutral-400 bg-warm-white dark:bg-neutral-800 px-1.5 py-[2px] rounded-[4px] truncate">{showPwd[acc.id] ? acc.password : '••••••••'}</span>
-                              <div className="flex flex-shrink-0">
-                                <button onClick={() => togglePwd(acc.id)} className="text-warm-gray-300 dark:text-neutral-500 hover:text-warm-gray-500 dark:hover:text-neutral-300 transition p-1 rounded-[4px]">{showPwd[acc.id] ? <EyeOff size={14}/> : <Eye size={14}/>}</button>
-                                <button onClick={() => handleCopy(acc.password, acc.id)} className="text-warm-gray-300 dark:text-neutral-500 hover:text-notion-blue transition p-1 rounded-[4px]">{copied === acc.id ? <Check size={14} className="text-green-500" /> : <Copy size={14}/>}</button>
-                              </div>
-                            </div>
-                          </td>
-                          <td className="px-4 py-3 text-warm-gray-500 dark:text-neutral-400 truncate text-[13px]">{acc.information || '—'}</td>
-                          <td className="px-4 py-3 text-warm-gray-500 dark:text-neutral-400 truncate text-[13px]">{acc.gmail_link || '—'}</td>
-                          <td className="px-3 py-3 text-right">
-                            <div className="flex items-center justify-end gap-1 opacity-100 sm:opacity-0 group-hover:opacity-100 transition">
-                              <button onClick={() => handlePin(acc.id, false)} className="text-warm-gray-300 dark:text-neutral-500 hover:bg-amber-50 dark:hover:bg-amber-500/10 hover:text-amber-500 transition p-1.5 rounded-[6px]" title="Ghim"><Pin size={15}/></button>
-                              <button onClick={() => handleEdit(acc)} className="text-warm-gray-300 dark:text-neutral-500 hover:bg-notion-blue/10 hover:text-notion-blue transition p-1.5 rounded-[6px]" title="Sửa"><Edit2 size={15}/></button>
-                              <button onClick={() => handleDelete(acc.id)} className="text-warm-gray-300 dark:text-neutral-500 hover:bg-red-50 dark:hover:bg-red-500/10 hover:text-red-500 transition p-1.5 rounded-[6px]" title="Xóa"><Trash2 size={15}/></button>
-                            </div>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
+              <AccountTable 
+                accounts={items} 
+                showPwd={showPwd} 
+                onTogglePwd={togglePwd} 
+                onCopy={handleCopy} 
+                copied={copied} 
+                onPin={handlePin} 
+                onEdit={handleEdit} 
+                onDelete={handleDelete}
+              />
             </div>
           ))
         )}
-
-        {/* Gợi ý vuốt ngang trên điện thoại */}
-        {accounts.length > 0 && (
-          <div className="block sm:hidden text-center text-[11px] text-warm-gray-300 mt-2">
-            Vuốt ngang ⟷ để xem đầy đủ bảng
-          </div>
-        )}
       </div>
 
-      {/* Modal thêm/sửa tài khoản */}
-      {openModal && (
-        <div className="fixed inset-0 bg-warm-dark/40 dark:bg-black/60 backdrop-blur-[2px] flex items-end sm:items-center justify-center z-50 p-0 sm:p-4">
-          <div className="bg-notion-white dark:bg-[#252525] border-t sm:border border-whisper dark:border-neutral-700 rounded-t-[16px] sm:rounded-[12px] shadow-deep p-6 sm:p-8 w-full max-w-[480px] max-h-[90vh] overflow-y-auto">
-            <div className="flex justify-between items-center mb-6">
-              <h2 className="text-[20px] sm:text-[22px] font-bold tracking-[-0.25px] text-notion-black dark:text-white">{editingId ? 'Sửa tài khoản' : 'Thêm tài khoản'}</h2>
-              <button onClick={() => setOpenModal(false)} className="w-8 h-8 flex items-center justify-center bg-warm-white dark:bg-neutral-700 rounded-full text-warm-gray-500 dark:text-neutral-300"><X size={16}/></button>
-            </div>
-            <form onSubmit={handleSave} className="flex flex-col gap-[14px]">
-              <div>
-                <label className="block text-[13px] font-medium text-warm-gray-500 dark:text-neutral-400 mb-[4px]">Loại tài khoản</label>
-                <input required placeholder="VD: Game, Công việc, Mạng xã hội" className="w-full bg-notion-white dark:bg-neutral-800 border border-whisper dark:border-neutral-700 rounded-[6px] px-3 py-[10px] sm:py-[8px] text-[15px] text-notion-black dark:text-neutral-100 focus:outline-none focus:ring-[2px] focus:ring-notion-blue/50 focus:border-notion-blue transition" value={form.account_type} onChange={e => setForm({...form, account_type: e.target.value})} />
-              </div>
-              <div>
-                <label className="block text-[13px] font-medium text-warm-gray-500 dark:text-neutral-400 mb-[4px]">Tài khoản</label>
-                <input required placeholder="Tên đăng nhập hoặc email" className="w-full bg-notion-white dark:bg-neutral-800 border border-whisper dark:border-neutral-700 rounded-[6px] px-3 py-[10px] sm:py-[8px] text-[15px] text-notion-black dark:text-neutral-100 focus:outline-none focus:ring-[2px] focus:ring-notion-blue/50 focus:border-notion-blue transition" value={form.account} onChange={e => setForm({...form, account: e.target.value})} />
-              </div>
-              <div>
-                <label className="block text-[13px] font-medium text-warm-gray-500 dark:text-neutral-400 mb-[4px]">Mật khẩu</label>
-                <input required placeholder="Mật khẩu" type="text" className="w-full bg-notion-white dark:bg-neutral-800 border border-whisper dark:border-neutral-700 rounded-[6px] px-3 py-[10px] sm:py-[8px] text-[15px] text-notion-black dark:text-neutral-100 focus:outline-none focus:ring-[2px] focus:ring-notion-blue/50 focus:border-notion-blue transition font-mono" value={form.password} onChange={e => setForm({...form, password: e.target.value})} />
-                <PasswordGenerator onUsePassword={(pwd) => setForm({...form, password: pwd})} />
-              </div>
-              <div>
-                <label className="block text-[13px] font-medium text-warm-gray-500 dark:text-neutral-400 mb-[4px]">Ghi chú</label>
-                <textarea placeholder="Thêm ghi chú ở đây..." className="w-full bg-notion-white dark:bg-neutral-800 border border-whisper dark:border-neutral-700 rounded-[6px] px-3 py-[10px] sm:py-[8px] text-[15px] text-notion-black dark:text-neutral-100 focus:outline-none focus:ring-[2px] focus:ring-notion-blue/50 focus:border-notion-blue transition min-h-[80px] resize-none" value={form.information} onChange={e => setForm({...form, information: e.target.value})} />
-              </div>
-              <div>
-                <label className="block text-[13px] font-medium text-warm-gray-500 dark:text-neutral-400 mb-[4px]">Gmail liên kết</label>
-                <input placeholder="Email khôi phục" className="w-full bg-notion-white dark:bg-neutral-800 border border-whisper dark:border-neutral-700 rounded-[6px] px-3 py-[10px] sm:py-[8px] text-[15px] text-notion-black dark:text-neutral-100 focus:outline-none focus:ring-[2px] focus:ring-notion-blue/50 focus:border-notion-blue transition" value={form.gmail_link} onChange={e => setForm({...form, gmail_link: e.target.value})} />
-              </div>
-              <div className="flex gap-3 mt-4 pt-4 sm:pt-6 pb-2 sm:pb-0 border-t border-whisper dark:border-neutral-700 justify-end">
-                <button type="button" onClick={() => setOpenModal(false)} className="hidden sm:block px-4 py-[8px] text-[15px] font-medium hover:bg-warm-white dark:hover:bg-neutral-700 text-notion-black dark:text-neutral-200 rounded-[6px] border border-whisper dark:border-neutral-700 transition">Hủy</button>
-                <button type="submit" className="w-full sm:w-auto px-5 py-[12px] sm:py-[8px] text-[15px] font-semibold bg-notion-blue hover:bg-notion-blue-hover text-white rounded-[8px] sm:rounded-[6px] transition active:scale-[0.98]">{editingId ? 'Cập nhật' : 'Lưu tài khoản'}</button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
+      {/* Modals */}
+      <AnimatePresence>
+        {openModal && (
+          <AddEditModal 
+            editingId={editingId} 
+            form={form} 
+            setForm={setForm} 
+            onSave={handleSave} 
+            onClose={() => setOpenModal(false)} 
+          />
+        )}
 
-      {/* Modal Thùng rác */}
-      {showTrash && (
-        <div className="fixed inset-0 bg-warm-dark/40 dark:bg-black/60 backdrop-blur-[2px] flex items-end sm:items-center justify-center z-50 p-0 sm:p-4">
-          <div className="bg-notion-white dark:bg-[#252525] border-t sm:border border-whisper dark:border-neutral-700 rounded-t-[16px] sm:rounded-[12px] shadow-deep p-6 sm:p-8 w-full max-w-[520px] max-h-[80vh] overflow-y-auto">
-            <div className="flex justify-between items-center mb-5">
-              <div className="flex items-center gap-2">
-                <Trash size={20} className="text-red-500" />
-                <h2 className="text-[20px] font-bold text-notion-black dark:text-white">Thùng rác</h2>
-              </div>
-              <button onClick={() => setShowTrash(false)} className="w-8 h-8 flex items-center justify-center bg-warm-white dark:bg-neutral-700 rounded-full text-warm-gray-500 dark:text-neutral-300"><X size={16}/></button>
-            </div>
-            {trashedAccounts.length === 0 ? (
-              <div className="text-center py-10">
-                <div className="flex justify-center mb-3">
-                  <Trash size={40} strokeWidth={1} className="text-warm-gray-200 dark:text-neutral-700" />
-                </div>
-                <p className="text-[14px] text-warm-gray-500 dark:text-neutral-400">Thùng rác trống</p>
-              </div>
-            ) : (
-              <div className="space-y-2">
-                {trashedAccounts.map(acc => (
-                  <div key={acc.id} className="flex items-center justify-between p-3 bg-warm-white dark:bg-neutral-800 rounded-[8px] border border-whisper dark:border-neutral-700">
-                    <div className="min-w-0">
-                      <p className="text-[14px] font-medium text-notion-black dark:text-neutral-100 truncate">{acc.account}</p>
-                      <p className="text-[12px] text-warm-gray-300 dark:text-neutral-500">{acc.account_type} • Đã xóa {acc.deleted_at ? timeAgo(acc.deleted_at) : ''}</p>
-                    </div>
-                    <div className="flex gap-1 flex-shrink-0 ml-2">
-                      <button onClick={() => handleRestore(acc.id)} className="text-[12px] font-medium text-notion-blue hover:bg-notion-blue/10 px-2.5 py-1.5 rounded-[6px] transition flex items-center gap-1"><RotateCcw size={13}/>Khôi phục</button>
-                      <button onClick={() => handlePermanentDelete(acc.id)} className="text-[12px] font-medium text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 px-2.5 py-1.5 rounded-[6px] transition">Xóa hẳn</button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        </div>
-      )}
+        {showTrash && (
+          <TrashModal 
+            accounts={trashedAccounts} 
+            onClose={() => setShowTrash(false)} 
+            onRestore={handleRestore} 
+            onPermanentDelete={handlePermanentDelete} 
+            timeAgo={timeAgo} 
+          />
+        )}
 
-      {/* Modal Lịch sử */}
-      {showActivityLog && (
-        <div className="fixed inset-0 bg-warm-dark/40 dark:bg-black/60 backdrop-blur-[2px] flex items-end sm:items-center justify-center z-50 p-0 sm:p-4">
-          <div className="bg-notion-white dark:bg-[#252525] border-t sm:border border-whisper dark:border-neutral-700 rounded-t-[16px] sm:rounded-[12px] shadow-deep p-6 sm:p-8 w-full max-w-[520px] max-h-[80vh] overflow-y-auto">
-            <div className="flex justify-between items-center mb-5">
-              <div className="flex items-center gap-2">
-                <Clock size={20} className="text-notion-blue" />
-                <h2 className="text-[20px] font-bold text-notion-black dark:text-white">Lịch sử hoạt động</h2>
-              </div>
-              <button onClick={() => setShowActivityLog(false)} className="w-8 h-8 flex items-center justify-center bg-warm-white dark:bg-neutral-700 rounded-full text-warm-gray-500 dark:text-neutral-300"><X size={16}/></button>
-            </div>
-            {activityLogs.length === 0 ? (
-              <div className="text-center py-10">
-                <div className="flex justify-center mb-3">
-                  <Clock size={40} strokeWidth={1} className="text-warm-gray-200 dark:text-neutral-700" />
-                </div>
-                <p className="text-[14px] text-warm-gray-500 dark:text-neutral-400">Chưa có hoạt động nào</p>
-              </div>
-            ) : (
-              <div className="space-y-0">
-                {activityLogs.map((log, i) => (
-                  <div key={log.id} className="flex gap-3 py-3 border-b border-whisper dark:border-neutral-700 last:border-b-0">
-                    <div className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 ${
-                      log.action === 'create' ? 'bg-emerald-50 dark:bg-emerald-500/10 text-emerald-500' : 
-                      log.action === 'delete' ? 'bg-red-50 dark:bg-red-500/10 text-red-500' : 
-                      log.action === 'restore' ? 'bg-amber-50 dark:bg-amber-500/10 text-amber-500' :
-                      log.action === 'pin' ? 'bg-purple-50 dark:bg-purple-500/10 text-purple-500' :
-                      'bg-blue-50 dark:bg-blue-500/10 text-notion-blue'
-                    }`}>
-                      {log.action === 'create' ? <Plus size={16}/> : 
-                       log.action === 'delete' ? <Trash2 size={16}/> : 
-                       log.action === 'restore' ? <RefreshCw size={16}/> : 
-                       log.action === 'pin' || log.action === 'unpin' ? <Pin size={16}/> : 
-                       <Edit2 size={16}/>}
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <p className="text-[13px] text-notion-black dark:text-neutral-200">
-                        <span className={`font-semibold ${actionColors[log.action] || ''}`}>{actionLabels[log.action] || log.action}</span> 
-                        {log.details?.account_name && <span className="text-warm-gray-500 dark:text-neutral-400 ml-1">— {log.details.account_name}</span>}
-                      </p>
-                      
-                      {/* Chi tiết thay đổi */}
-                      {log.action === 'update' && log.details?.changes && (
-                        <div className="mt-1.5 pl-2.5 border-l-2 border-whisper dark:border-neutral-700 space-y-1 py-0.5">
-                          {Object.entries(log.details.changes).map(([field, val]) => {
-                            const fieldLabels = {
-                              account_type: 'Loại',
-                              account: 'Tài khoản',
-                              password: 'Mật khẩu',
-                              information: 'Ghi chú',
-                              gmail_link: 'Email liên kết'
-                            };
-                            return (
-                              <p key={field} className="text-[11px] leading-relaxed">
-                                <span className="text-warm-gray-400 dark:text-neutral-500 font-medium">{fieldLabels[field] || field}:</span>{' '}
-                                <span className="text-warm-gray-400 line-through px-1 bg-warm-white dark:bg-neutral-800 rounded">{field === 'password' ? '••••' : (val.old || 'trống')}</span>
-                                <span className="text-warm-gray-300 dark:text-neutral-600 px-1">→</span>
-                                <span className="text-notion-blue dark:text-blue-400 font-medium px-1 bg-notion-blue/5 dark:bg-blue-500/10 rounded">{field === 'password' ? '••••' : (val.new || 'trống')}</span>
-                              </p>
-                            );
-                          })}
-                        </div>
-                      )}
-                      
-                      <p className="text-[11px] text-warm-gray-300 dark:text-neutral-500 mt-1">{timeAgo(log.created_at)}</p>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        </div>
-      )}
+        {showActivityLog && (
+          <ActivityLogModal 
+            logs={activityLogs} 
+            onClose={() => setShowActivityLog(false)} 
+            actionLabels={actionLabels} 
+            actionColors={actionColors} 
+            timeAgo={timeAgo} 
+          />
+        )}
 
-      {/* Modal Xuất/Nhập */}
-      {showImportExport && (
-        <div className="fixed inset-0 bg-warm-dark/40 dark:bg-black/60 backdrop-blur-[2px] flex items-end sm:items-center justify-center z-50 p-0 sm:p-4">
-          <div className="bg-notion-white dark:bg-[#252525] border-t sm:border border-whisper dark:border-neutral-700 rounded-t-[16px] sm:rounded-[12px] shadow-deep p-6 sm:p-8 w-full max-w-[420px]">
-            <div className="flex justify-between items-center mb-5">
-              <div className="flex items-center gap-2">
-                <Package size={20} className="text-amber-500" />
-                <h2 className="text-[20px] font-bold text-notion-black dark:text-white">Xuất / Nhập dữ liệu</h2>
-              </div>
-              <button onClick={() => setShowImportExport(false)} className="w-8 h-8 flex items-center justify-center bg-warm-white dark:bg-neutral-700 rounded-full text-warm-gray-500 dark:text-neutral-300"><X size={16}/></button>
-            </div>
-            <div className="space-y-3">
-              <p className="text-[13px] font-semibold text-warm-gray-500 dark:text-neutral-400 uppercase tracking-[0.5px]">Xuất dữ liệu</p>
-              <div className="flex gap-2">
-                <button onClick={() => handleExport('json')} className="flex-1 flex items-center justify-center gap-1.5 border border-whisper dark:border-neutral-700 rounded-[8px] py-3 text-[14px] font-medium text-notion-black dark:text-neutral-200 hover:bg-warm-white dark:hover:bg-neutral-800 transition"><Download size={14}/>JSON</button>
-                <button onClick={() => handleExport('csv')} className="flex-1 flex items-center justify-center gap-1.5 border border-whisper dark:border-neutral-700 rounded-[8px] py-3 text-[14px] font-medium text-notion-black dark:text-neutral-200 hover:bg-warm-white dark:hover:bg-neutral-800 transition"><Download size={14}/>CSV</button>
-              </div>
-              <div className="border-t border-whisper dark:border-neutral-700 pt-3">
-                <p className="text-[13px] font-semibold text-warm-gray-500 dark:text-neutral-400 uppercase tracking-[0.5px] mb-2">Nhập dữ liệu</p>
-                <label className="flex flex-col items-center justify-center border-2 border-dashed border-whisper dark:border-neutral-600 rounded-[10px] py-6 cursor-pointer hover:border-notion-blue dark:hover:border-blue-400 hover:bg-notion-blue/5 dark:hover:bg-blue-500/5 transition">
-                  <Upload size={20} className="text-warm-gray-300 dark:text-neutral-500 mb-2" />
-                  <span className="text-[13px] text-warm-gray-500 dark:text-neutral-400">Chọn file JSON hoặc CSV</span>
-                  <input type="file" accept=".json,.csv" onChange={handleImportFile} className="hidden" />
-                </label>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
+        {showImportExport && (
+          <ImportExportModal 
+            onClose={() => setShowImportExport(false)} 
+            onExport={handleExport} 
+            onImport={handleImportFile} 
+          />
+        )}
+
+        {showUnlockModal && (
+          <UnlockModal 
+            unlockPassword={unlockPassword} 
+            setUnlockPassword={setUnlockPassword} 
+            unlockError={unlockError} 
+            setUnlockError={setUnlockError} 
+            onUnlock={handleUnlock} 
+            onClose={() => { setShowUnlockModal(false); setPendingAction(null); }} 
+          />
+        )}
+      </AnimatePresence>
     </div>
   );
 }

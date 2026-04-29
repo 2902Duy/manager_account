@@ -4,6 +4,8 @@ const cors = require('cors');
 const { createClient } = require('@supabase/supabase-js');
 
 require('dotenv').config();
+const crypto = require('crypto');
+const { z } = require('zod');
 
 const app = express();
 const PORT = process.env.PORT || 8000;
@@ -23,6 +25,60 @@ const supabaseAuth = createClient(
   process.env.SUPABASE_URL,
   process.env.SUPABASE_ANON_KEY
 );
+
+// ─────────────────────────────────────────
+// Encryption Helpers (AES-256-CBC)
+// ─────────────────────────────────────────
+const ALGORITHM = 'aes-256-cbc';
+const ENCRYPTION_KEY = Buffer.from(process.env.ENCRYPTION_KEY, 'hex'); // 32 bytes
+const IV_LENGTH = 16; // For AES, this is always 16
+
+const encrypt = (text) => {
+  if (!text) return text;
+  const iv = crypto.randomBytes(IV_LENGTH);
+  const cipher = crypto.createCipheriv(ALGORITHM, ENCRYPTION_KEY, iv);
+  let encrypted = cipher.update(text);
+  encrypted = Buffer.concat([encrypted, cipher.final()]);
+  return iv.toString('hex') + ':' + encrypted.toString('hex');
+};
+
+const decrypt = (text) => {
+  if (!text || !text.includes(':')) return text;
+  const textParts = text.split(':');
+  const iv = Buffer.from(textParts.shift(), 'hex');
+  const encryptedText = Buffer.from(textParts.join(':'), 'hex');
+  const decipher = crypto.createDecipheriv(ALGORITHM, ENCRYPTION_KEY, iv);
+  let decrypted = decipher.update(encryptedText);
+  decrypted = Buffer.concat([decrypted, decipher.final()]);
+  return decrypted.toString();
+};
+
+// ─────────────────────────────────────────
+// Validation Schemas
+// ─────────────────────────────────────────
+const accountSchema = z.object({
+  account_type: z.string().min(1, 'Loại tài khoản không được để trống'),
+  account: z.string().min(1, 'Tên tài khoản không được để trống'),
+  password: z.string().min(1, 'Mật khẩu không được để trống'),
+  information: z.string().optional().nullable(),
+  gmail_link: z.string().optional().nullable(),
+  tags: z.array(z.string()).optional().default([]),
+  strength_score: z.number().optional().default(0),
+});
+
+// Helper tính điểm sức khỏe mật khẩu (bản backend)
+const calculateStrength = (password) => {
+  if (!password) return 0;
+  let score = 0;
+  if (password.length >= 8) score += 10;
+  if (password.length >= 12) score += 10;
+  if (password.length >= 16) score += 10;
+  if (/[A-Z]/.test(password)) score += 15;
+  if (/[a-z]/.test(password)) score += 15;
+  if (/[0-9]/.test(password)) score += 20;
+  if (/[^A-Za-z0-9]/.test(password)) score += 20;
+  return score;
+};
 
 // ─────────────────────────────────────────
 // Middleware
@@ -195,22 +251,48 @@ app.get('/api/accounts', authMiddleware, async (req, res) => {
     .limit(500);
 
   if (error) { console.error(error); return res.status(500).json({ error: 'Lỗi khi tải dữ liệu' }); }
-  res.json(data);
+  
+  // Giải mã mật khẩu trước khi trả về
+  const decryptedData = data.map(acc => ({
+    ...acc,
+    password: decrypt(acc.password)
+  }));
+  
+  res.json(decryptedData);
 });
 
 // Create
 app.post('/api/accounts', authMiddleware, async (req, res) => {
-  const { account_type, account, password, information, gmail_link } = req.body;
+  try {
+    const validated = accountSchema.parse(req.body);
+    const { account_type, account, password, information, gmail_link, tags } = validated;
 
-  const { data, error } = await supabase
-    .from('stored_accounts')
-    .insert([{ account_type, account, password, information, gmail_link, user_id: req.user.id }])
-    .select()
-    .single();
+    const strength_score = calculateStrength(password);
 
-  if (error) { console.error(error); return res.status(500).json({ error: 'Lỗi khi tạo tài khoản' }); }
-  logActivity(req.user.id, data.id, 'create', { account_name: account });
-  res.status(201).json(data);
+    const { data, error } = await supabase
+      .from('stored_accounts')
+      .insert([{ 
+        account_type, 
+        account, 
+        password: encrypt(password),
+        information, 
+        gmail_link, 
+        tags: tags || [],
+        strength_score,
+        user_id: req.user.id 
+      }])
+      .select()
+      .single();
+
+    if (error) { console.error(error); return res.status(500).json({ error: 'Lỗi khi tạo tài khoản' }); }
+    logActivity(req.user.id, data.id, 'create', { account_name: account });
+    
+    // Trả về dữ liệu đã giải mã để frontend cập nhật UI ngay
+    res.status(201).json({ ...data, password: decrypt(data.password) });
+  } catch (err) {
+    if (err instanceof z.ZodError) return res.status(400).json({ error: err.errors[0].message });
+    res.status(500).json({ error: 'Lỗi server' });
+  }
 });
 
 // Bulk Import
@@ -222,7 +304,7 @@ app.post('/api/accounts/bulk', authMiddleware, async (req, res) => {
   const rows = accounts.map(a => ({
     account_type: a.account_type || 'Khác',
     account: a.account || '',
-    password: a.password || '',
+    password: encrypt(a.password || ''), // Mã hóa
     information: a.information || '',
     gmail_link: a.gmail_link || '',
     user_id: req.user.id
@@ -236,54 +318,71 @@ app.post('/api/accounts/bulk', authMiddleware, async (req, res) => {
 
 // Update
 app.put('/api/accounts/:id', authMiddleware, async (req, res) => {
-  const id = parseInt(req.params.id);
-  const { account_type, account, password, information, gmail_link } = req.body;
+  try {
+    const validated = accountSchema.parse(req.body);
+    const { account_type, account, password, information, gmail_link, tags } = validated;
 
-  // 1. Lấy dữ liệu CŨ trước khi cập nhật để so sánh
-  const { data: oldData } = await supabase
-    .from('stored_accounts')
-    .select('*')
-    .eq('id', id)
-    .eq('user_id', req.user.id)
-    .single();
+    const strength_score = calculateStrength(password);
 
-  if (!oldData) return res.status(404).json({ message: 'Không tìm thấy tài khoản' });
+    // 1. Lấy dữ liệu CŨ trước khi cập nhật để so sánh
+    const { data: oldData } = await supabase
+      .from('stored_accounts')
+      .select('*')
+      .eq('id', id)
+      .eq('user_id', req.user.id)
+      .single();
 
-  // 2. Thực hiện cập nhật dữ liệu mới
-  const { data: newData, error } = await supabase
-    .from('stored_accounts')
-    .update({ account_type, account, password, information, gmail_link })
-    .eq('id', id)
-    .eq('user_id', req.user.id)
-    .select()
-    .single();
+    if (!oldData) return res.status(404).json({ message: 'Không tìm thấy tài khoản' });
 
-  if (error) { console.error(error); return res.status(500).json({ error: 'Lỗi cập nhật' }); }
+    // Giải mã pass cũ để so sánh
+    const oldDecryptedPassword = decrypt(oldData.password);
 
-  // 3. So sánh các trường để tìm thay đổi
-  const changes = {};
-  const fields = ['account_type', 'account', 'password', 'information', 'gmail_link'];
-  
-  fields.forEach(field => {
-    // Chỉ lưu thay đổi nếu giá trị khác nhau (loại bỏ trường hợp null vs undefined vs '')
-    const oldVal = oldData[field] || '';
-    const newVal = req.body[field] || '';
+    // 2. Thực hiện cập nhật dữ liệu mới
+    const { data: newData, error } = await supabase
+      .from('stored_accounts')
+      .update({ 
+        account_type, 
+        account, 
+        password: encrypt(password), 
+        information, 
+        gmail_link,
+        tags: tags || [],
+        strength_score
+      })
+      .eq('id', id)
+      .eq('user_id', req.user.id)
+      .select()
+      .single();
+
+    if (error) { console.error(error); return res.status(500).json({ error: 'Lỗi cập nhật' }); }
+
+    // 3. So sánh các trường để tìm thay đổi
+    const changes = {};
+    const fields = ['account_type', 'account', 'password', 'information', 'gmail_link'];
     
-    if (oldVal !== newVal) {
-      changes[field] = {
-        old: oldVal,
-        new: newVal
-      };
-    }
-  });
+    fields.forEach(field => {
+      const oldVal = field === 'password' ? oldDecryptedPassword : (oldData[field] || '');
+      const newVal = req.body[field] || '';
+      
+      if (oldVal !== newVal) {
+        changes[field] = {
+          old: oldVal,
+          new: newVal
+        };
+      }
+    });
 
-  // 4. Lưu log chi tiết nếu có thay đổi
-  logActivity(req.user.id, id, 'update', { 
-    account_name: account,
-    changes: Object.keys(changes).length > 0 ? changes : null
-  });
+    // 4. Lưu log chi tiết nếu có thay đổi
+    logActivity(req.user.id, id, 'update', { 
+      account_name: account,
+      changes: Object.keys(changes).length > 0 ? changes : null
+    });
 
-  res.json(newData);
+    res.json({ ...newData, password: decrypt(newData.password) });
+  } catch (err) {
+    if (err instanceof z.ZodError) return res.status(400).json({ error: err.errors[0].message });
+    res.status(500).json({ error: 'Lỗi server' });
+  }
 });
 
 // Pin Toggle
@@ -333,7 +432,14 @@ app.get('/api/accounts/trash', authMiddleware, async (req, res) => {
     .order('deleted_at', { ascending: false });
 
   if (error) { console.error(error); return res.status(500).json({ error: 'Lỗi' }); }
-  res.json(data);
+  
+  // Giải mã
+  const decryptedData = data.map(acc => ({
+    ...acc,
+    password: decrypt(acc.password)
+  }));
+  
+  res.json(decryptedData);
 });
 
 // Khôi phục
@@ -350,7 +456,7 @@ app.post('/api/accounts/:id/restore', authMiddleware, async (req, res) => {
 
   if (error) { console.error(error); return res.status(500).json({ error: 'Lỗi khôi phục' }); }
   logActivity(req.user.id, id, 'restore', { account_name: data?.account });
-  res.json(data);
+  res.json({ ...data, password: decrypt(data.password) });
 });
 
 // Xóa vĩnh viễn
