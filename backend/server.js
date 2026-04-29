@@ -49,14 +49,19 @@ const encrypt = (text) => {
 };
 
 const decrypt = (text) => {
-  if (!text || !text.includes(':')) return text;
-  const textParts = text.split(':');
-  const iv = Buffer.from(textParts.shift(), 'hex');
-  const encryptedText = Buffer.from(textParts.join(':'), 'hex');
-  const decipher = crypto.createDecipheriv(ALGORITHM, ENCRYPTION_KEY, iv);
-  let decrypted = decipher.update(encryptedText);
-  decrypted = Buffer.concat([decrypted, decipher.final()]);
-  return decrypted.toString();
+  try {
+    if (!text || !text.includes(':')) return text;
+    const textParts = text.split(':');
+    const iv = Buffer.from(textParts.shift(), 'hex');
+    const encryptedText = Buffer.from(textParts.join(':'), 'hex');
+    const decipher = crypto.createDecipheriv(ALGORITHM, ENCRYPTION_KEY, iv);
+    let decrypted = decipher.update(encryptedText);
+    decrypted = Buffer.concat([decrypted, decipher.final()]);
+    return decrypted.toString();
+  } catch (err) {
+    console.error('❌ Lỗi giải mã mật khẩu (Có thể do sai ENCRYPTION_KEY):', err.message);
+    return '[Lỗi giải mã - Sai Key]';
+  }
 };
 
 // ─────────────────────────────────────────
@@ -223,28 +228,45 @@ app.post('/api/auth/forgot-password', async (req, res) => {
 
 // [POST] /api/auth/reset-password — Đặt lại mật khẩu mới
 app.post('/api/auth/reset-password', async (req, res) => {
-  const { password, hash } = req.body;
-  if (!password) return res.status(400).json({ error: 'Cần nhập mật khẩu mới' });
+  try {
+    const { password, hash } = req.body;
+    if (!password) return res.status(400).json({ error: 'Cần nhập mật khẩu mới' });
 
-  // Supabase cần token từ hash để xác thực việc đổi pass
-  // Token thường nằm sau #access_token=...
-  const tokenMatch = hash?.match(/access_token=([^&]*)/);
-  const accessToken = tokenMatch ? tokenMatch[1] : null;
+    // Lấy access_token và refresh_token từ hash
+    const params = new URLSearchParams(hash.replace('#', '?'));
+    const accessToken = params.get('access_token');
+    const refreshToken = params.get('refresh_token');
 
-  if (!accessToken) {
-    return res.status(400).json({ error: 'Phiên làm việc hết hạn hoặc link không hợp lệ' });
+    if (!accessToken) {
+      return res.status(400).json({ error: 'Phiên làm việc hết hạn hoặc link không hợp lệ' });
+    }
+
+    // BƯỚC QUAN TRỌNG: Thiết lập session trước khi update
+    const { data: sessionData, error: sessionError } = await supabaseAuth.auth.setSession({
+      access_token: accessToken,
+      refresh_token: refreshToken || ''
+    });
+
+    if (sessionError) {
+      console.error('❌ SetSession Error:', sessionError.message);
+      return res.status(400).json({ error: 'Không thể thiết lập phiên làm việc: ' + sessionError.message });
+    }
+
+    // Sau khi có session, tiến hành update mật khẩu
+    const { error: updateError } = await supabaseAuth.auth.updateUser({
+      password: password
+    });
+
+    if (updateError) {
+      console.error('❌ UpdateUser Error:', updateError.message);
+      return res.status(400).json({ error: updateError.message });
+    }
+
+    res.json({ message: 'Cập nhật mật khẩu thành công!' });
+  } catch (err) {
+    console.error('🔥 Reset Password System Error:', err);
+    res.status(500).json({ error: 'Lỗi hệ thống khi đặt lại mật khẩu' });
   }
-
-  // Sử dụng token này để update user
-  const { error } = await supabaseAuth.auth.updateUser({
-    password: password
-  }, {
-    accessToken: accessToken
-  });
-
-  if (error) return res.status(400).json({ error: error.message });
-
-  res.json({ message: 'Cập nhật mật khẩu thành công!' });
 });
 
 // ─────────────────────────────────────────
