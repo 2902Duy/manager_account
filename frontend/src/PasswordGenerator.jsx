@@ -46,7 +46,6 @@ export default function PasswordGenerator({ onUsePassword }) {
     if (options.symbols) chars += CHAR_SETS.symbols;
     if (!chars) chars = CHAR_SETS.lowercase;
 
-    // Animate generation
     setIsGenerating(true);
     let result = '';
     for (let i = 0; i < length; i++) {
@@ -60,7 +59,7 @@ export default function PasswordGenerator({ onUsePassword }) {
 
   useEffect(() => {
     if (isOpen && !generated) generate();
-  }, [isOpen]);
+  }, [isOpen, generated, generate]);
 
   const handleCopy = () => {
     navigator.clipboard.writeText(generated);
@@ -76,16 +75,8 @@ export default function PasswordGenerator({ onUsePassword }) {
 
   const strength = getStrength(generated);
 
-  const optionLabels = [
-    { key: 'uppercase', label: 'A-Z' },
-    { key: 'lowercase', label: 'a-z' },
-    { key: 'numbers', label: '0-9' },
-    { key: 'symbols', label: '!@#' },
-  ];
-
   return (
     <div className="mt-1">
-      {/* Toggle Button */}
       <button
         type="button"
         onClick={() => setIsOpen(!isOpen)}
@@ -96,105 +87,96 @@ export default function PasswordGenerator({ onUsePassword }) {
         {isOpen ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
       </button>
 
-      {/* Generator Panel */}
       {isOpen && (
-        <div className="mt-2 p-3 bg-warm-white dark:bg-neutral-800 border border-whisper dark:border-neutral-700 rounded-[8px] space-y-3 animate-slideDown">
-          {/* Generated Password Display */}
+        <div className="mt-2 p-4 bg-warm-white dark:bg-neutral-800 border border-whisper dark:border-neutral-700 rounded-[12px] space-y-4 animate-slideDown shadow-sm">
+          {/* Display */}
           <div className="flex items-center gap-2">
-            <div className={`flex-1 font-mono text-[13px] bg-notion-white dark:bg-neutral-900 border border-whisper dark:border-neutral-700 rounded-[6px] px-3 py-[7px] truncate select-all transition-all ${isGenerating ? 'opacity-50 blur-[1px]' : 'opacity-100'}`}>
+            <div className={`flex-1 font-mono text-[14px] bg-notion-white dark:bg-neutral-900 border border-whisper dark:border-neutral-700 rounded-[8px] px-3 py-[8px] truncate transition-all ${isGenerating ? 'opacity-50' : 'opacity-100'}`}>
               {generated || '...'}
             </div>
-            <button
-              type="button"
-              onClick={generate}
-              className="p-[7px] rounded-[6px] text-warm-gray-500 dark:text-neutral-400 hover:bg-notion-white dark:hover:bg-neutral-700 hover:text-notion-blue dark:hover:text-blue-400 border border-whisper dark:border-neutral-700 transition active:scale-95"
-              title="Tạo lại"
-            >
-              <RefreshCw size={14} className={isGenerating ? 'animate-spin' : ''} />
-            </button>
-            <button
-              type="button"
-              onClick={handleCopy}
-              className="p-[7px] rounded-[6px] text-warm-gray-500 dark:text-neutral-400 hover:bg-notion-white dark:hover:bg-neutral-700 hover:text-notion-blue dark:hover:text-blue-400 border border-whisper dark:border-neutral-700 transition active:scale-95"
-              title="Sao chép"
-            >
-              {copied ? <Check size={14} className="text-emerald-500" /> : <Copy size={14} />}
-            </button>
+            <div className="flex gap-1">
+              <button
+                type="button"
+                onClick={generate}
+                className="p-2 rounded-[6px] text-warm-gray-500 dark:text-neutral-400 hover:bg-notion-white dark:hover:bg-neutral-700 hover:text-notion-blue transition border border-whisper dark:border-neutral-700"
+              >
+                <RefreshCw size={14} className={isGenerating ? 'animate-spin' : ''} />
+              </button>
+              <button
+                type="button"
+                onClick={handleCopy}
+                className="p-2 rounded-[6px] text-warm-gray-500 dark:text-neutral-400 hover:bg-notion-white dark:hover:bg-neutral-700 hover:text-notion-blue transition border border-whisper dark:border-neutral-700"
+              >
+                {copied ? <Check size={14} className="text-emerald-500" /> : <Copy size={14} />}
+              </button>
+            </div>
           </div>
 
           {/* Strength Bar */}
-          <div className="space-y-1">
-            <div className="flex justify-between items-center">
-              <span className="text-[11px] text-warm-gray-300 dark:text-neutral-500">Độ mạnh</span>
-              <span className={`text-[11px] font-semibold ${strength.score <= 1 ? 'text-red-400' : strength.score <= 2 ? 'text-amber-500' : 'text-emerald-500'}`}>
-                {strength.label}
-              </span>
+          <div className="space-y-1.5">
+            <div className="flex justify-between items-center px-1">
+              <span className="text-[11px] text-warm-gray-400">Độ mạnh</span>
+              <span className={`text-[11px] font-bold ${strength.text}`}>{strength.label}</span>
             </div>
-            <div className="flex gap-1">
+            <div className="flex gap-1.5">
               {[1, 2, 3, 4].map(i => (
-                <div
-                  key={i}
-                  className={`h-[3px] flex-1 rounded-full transition-all duration-300 ${i <= strength.score ? strength.color : 'bg-warm-white dark:bg-neutral-700'}`}
-                />
+                <div key={i} className={`h-1 flex-1 rounded-full transition-colors ${i <= strength.score ? strength.color : 'bg-notion-white dark:bg-neutral-700'}`} />
               ))}
             </div>
           </div>
 
-          {/* Length Slider */}
-          <div className="space-y-1">
-            <div className="flex justify-between items-center">
-              <span className="text-[11px] text-warm-gray-300 dark:text-neutral-500">Độ dài</span>
-              <span className="text-[12px] font-semibold text-notion-black dark:text-neutral-200 bg-notion-white dark:bg-neutral-700 px-1.5 py-[1px] rounded-[4px] border border-whisper dark:border-neutral-600 min-w-[28px] text-center">
-                {length}
-              </span>
+          {/* Options Section */}
+          <div className="space-y-4 pt-2">
+            {/* Length */}
+            <div className="space-y-2.5">
+              <div className="flex justify-between items-center px-0.5">
+                <span className="text-[12px] font-medium text-warm-gray-500 dark:text-neutral-400">Độ dài</span>
+                <span className="text-[12px] font-bold text-notion-blue bg-notion-blue/5 dark:bg-blue-500/10 px-2 py-0.5 rounded-full">{length} ký tự</span>
+              </div>
+              <input
+                type="range" min="6" max="64" value={length}
+                onChange={(e) => setLength(parseInt(e.target.value))}
+                className="w-full h-1.5 bg-notion-white dark:bg-neutral-700 rounded-lg appearance-none cursor-pointer accent-notion-blue"
+              />
+              <div className="flex justify-between px-0.5 text-[10px] text-warm-gray-300 font-bold uppercase">
+                <span>6</span>
+                <span>64</span>
+              </div>
             </div>
-            <input
-              type="range"
-              min="6"
-              max="64"
-              value={length}
-              onChange={e => { setLength(parseInt(e.target.value)); }}
-              onMouseUp={generate}
-              onTouchEnd={generate}
-              className="w-full h-[4px] appearance-none bg-warm-white dark:bg-neutral-700 rounded-full cursor-pointer accent-notion-blue"
-            />
-            <div className="flex justify-between text-[10px] text-warm-gray-300 dark:text-neutral-500">
-              <span>6</span>
-              <span>64</span>
+
+            {/* Types */}
+            <div className="flex flex-wrap gap-2">
+              {[
+                { id: 'uppercase', label: 'A-Z' },
+                { id: 'lowercase', label: 'a-z' },
+                { id: 'numbers', label: '0-9' },
+                { id: 'symbols', label: '!@#' },
+              ].map((type) => (
+                <button
+                  key={type.id}
+                  type="button"
+                  onClick={() => {
+                    const newOpts = { ...options, [type.id]: !options[type.id] };
+                    if (!Object.values(newOpts).some(v => v)) return;
+                    setOptions(newOpts);
+                  }}
+                  className={`px-3 py-1.5 rounded-[8px] text-[11px] font-bold transition-all border ${
+                    options[type.id]
+                      ? 'bg-notion-blue text-white border-notion-blue shadow-sm'
+                      : 'bg-notion-white dark:bg-neutral-900 text-warm-gray-400 dark:text-neutral-500 border-whisper dark:border-neutral-700 hover:border-warm-gray-300'
+                  }`}
+                >
+                  {type.label}
+                </button>
+              ))}
             </div>
           </div>
 
-          {/* Options */}
-          <div className="flex flex-wrap gap-1.5">
-            {optionLabels.map(({ key, label }) => (
-              <button
-                key={key}
-                type="button"
-                onClick={() => {
-                  const newOpts = { ...options, [key]: !options[key] };
-                  // Ensure at least one option is enabled
-                  if (!Object.values(newOpts).some(v => v)) return;
-                  setOptions(newOpts);
-                  // Regenerate after option change
-                  setTimeout(() => generate(), 0);
-                }}
-                className={`px-2.5 py-[4px] rounded-full text-[11px] font-semibold border transition-all active:scale-95 ${
-                  options[key]
-                    ? 'bg-notion-blue/10 dark:bg-blue-500/20 text-notion-blue dark:text-blue-400 border-notion-blue/30 dark:border-blue-500/30'
-                    : 'bg-warm-white dark:bg-neutral-700 text-warm-gray-300 dark:text-neutral-500 border-whisper dark:border-neutral-600 hover:border-warm-gray-300 dark:hover:border-neutral-500'
-                }`}
-              >
-                {label}
-              </button>
-            ))}
-          </div>
-
-          {/* Use Password Button */}
           <button
             type="button"
             onClick={handleUse}
             disabled={!generated}
-            className="w-full py-[7px] text-[13px] font-semibold bg-notion-blue hover:bg-notion-blue-hover disabled:opacity-50 text-white rounded-[6px] transition active:scale-[0.98]"
+            className="w-full py-2.5 text-[13px] font-bold bg-notion-blue hover:bg-notion-blue-hover disabled:opacity-50 text-white rounded-[8px] transition shadow-md active:scale-[0.98]"
           >
             Sử dụng mật khẩu này
           </button>
