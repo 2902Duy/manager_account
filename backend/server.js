@@ -29,9 +29,15 @@ const supabaseAuth = createClient(
 // ─────────────────────────────────────────
 // Encryption Helpers (AES-256-CBC)
 // ─────────────────────────────────────────
+if (!process.env.ENCRYPTION_KEY) {
+  console.error('❌ LỖI NGHIÊM TRỌNG: Thiếu biến môi trường ENCRYPTION_KEY!');
+  console.error('Vui lòng cấu hình ENCRYPTION_KEY trong Dashboard của Render.');
+  process.exit(1);
+}
+
 const ALGORITHM = 'aes-256-cbc';
 const ENCRYPTION_KEY = Buffer.from(process.env.ENCRYPTION_KEY, 'hex'); // 32 bytes
-const IV_LENGTH = 16; // For AES, this is always 16
+const IV_LENGTH = 16; 
 
 const encrypt = (text) => {
   if (!text) return text;
