@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import axios from 'axios';
 import { Link } from 'react-router-dom';
+import PasswordInput from './components/PasswordInput';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
 
@@ -27,15 +28,12 @@ export default function Login({ onLogin }) {
   return (
     <div className="min-h-screen bg-notion-white dark:bg-[#191919] flex flex-col justify-center items-center py-12 px-4">
       <div className="max-w-[400px] w-full">
-
-        {/* Logo & Title */}
         <div className="flex flex-col items-center mb-8">
           <img src="/logo.png" alt="Account Vault" className="w-14 h-14 mb-4 object-contain" />
           <h1 className="text-[26px] font-bold tracking-[-0.6px] text-notion-black dark:text-white">Đăng nhập</h1>
           <p className="text-[14px] text-warm-gray-500 dark:text-neutral-400 mt-1">Tiếp tục vào Account Vault</p>
         </div>
 
-        {/* Card */}
         <div className="bg-notion-white dark:bg-[#252525] border border-whisper dark:border-neutral-700 rounded-[12px] shadow-deep p-8">
           <form onSubmit={handleSubmit} className="flex flex-col gap-5">
             {error && (
@@ -56,8 +54,8 @@ export default function Login({ onLogin }) {
 
             <div>
               <label className="block text-[13px] font-medium text-warm-gray-500 dark:text-neutral-400 mb-[6px]">Mật khẩu</label>
-              <input
-                type="password" required
+              <PasswordInput
+                required
                 placeholder="••••••••"
                 className="w-full bg-notion-white dark:bg-neutral-800 border border-whisper dark:border-neutral-700 rounded-[6px] px-3 py-[9px] text-[15px] text-notion-black dark:text-neutral-100 focus:outline-none focus:ring-2 focus:ring-notion-blue/40 focus:border-notion-blue transition"
                 value={password} onChange={e => setPassword(e.target.value)}

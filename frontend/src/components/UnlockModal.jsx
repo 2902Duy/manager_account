@@ -1,23 +1,24 @@
 import React from 'react';
-import { Package, X } from 'lucide-react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { Package } from 'lucide-react';
+import { motion as Motion } from 'framer-motion';
+import PasswordInput from './PasswordInput';
 
-export default function UnlockModal({ 
-  unlockPassword, 
-  setUnlockPassword, 
-  unlockError, 
-  setUnlockError, 
-  onUnlock, 
-  onClose 
+export default function UnlockModal({
+  unlockPassword,
+  setUnlockPassword,
+  unlockError,
+  setUnlockError,
+  onUnlock,
+  onClose
 }) {
   return (
-    <motion.div 
+    <Motion.div
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
       className="fixed inset-0 bg-warm-dark/60 dark:bg-black/80 backdrop-blur-[4px] flex items-center justify-center z-[100] p-4"
     >
-      <motion.div 
+      <Motion.div
         initial={{ scale: 0.9, opacity: 0, y: 20 }}
         animate={{ scale: 1, opacity: 1, y: 0 }}
         transition={{ type: 'spring', damping: 25, stiffness: 300 }}
@@ -32,10 +33,9 @@ export default function UnlockModal({
         </div>
         <form onSubmit={onUnlock} className="space-y-4">
           <div>
-            <input 
-              type="password" 
+            <PasswordInput
               autoFocus
-              placeholder="Mật khẩu của bạn" 
+              placeholder="Mật khẩu của bạn"
               className={`w-full bg-warm-white dark:bg-neutral-800 border ${unlockError ? 'border-red-500' : 'border-whisper dark:border-neutral-700'} rounded-[8px] px-4 py-3 text-[15px] focus:outline-none focus:ring-2 focus:ring-notion-blue/30 transition`}
               value={unlockPassword}
               onChange={e => { setUnlockPassword(e.target.value); setUnlockError(''); }}
@@ -47,7 +47,7 @@ export default function UnlockModal({
             <button type="submit" className="flex-[2] bg-notion-blue hover:bg-notion-blue-hover text-white px-4 py-2.5 rounded-[8px] text-[14px] font-semibold transition active:scale-[0.98]">Xác nhận</button>
           </div>
         </form>
-      </motion.div>
-    </motion.div>
+      </Motion.div>
+    </Motion.div>
   );
 }

@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import axios from 'axios';
 import { Link, useNavigate } from 'react-router-dom';
+import PasswordInput from './components/PasswordInput';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
 
@@ -49,31 +50,27 @@ export default function Register() {
   return (
     <div className="min-h-screen bg-notion-white dark:bg-[#191919] flex flex-col justify-center items-center py-12 px-4">
       <div className="max-w-[400px] w-full">
-        {/* Header */}
         <div className="flex flex-col items-center mb-8">
           <img src="/logo.png" alt="Account Vault" className="w-14 h-14 mb-4 object-contain" />
           <h1 className="text-[26px] font-bold tracking-[-0.6px] text-notion-black dark:text-white">Tạo tài khoản</h1>
           <p className="text-[14px] text-warm-gray-500 dark:text-neutral-400 mt-1">Miễn phí · Không giới hạn</p>
         </div>
 
-        {/* Card */}
         <div className="bg-notion-white dark:bg-[#252525] border border-whisper dark:border-neutral-700 rounded-[12px] shadow-deep p-8">
           {success ? (
             <div className="text-center py-4">
-              {/* Success Icon - Animated checkmark */}
               <div className="w-16 h-16 mx-auto mb-5 rounded-full bg-green-50 border-2 border-green-200 flex items-center justify-center">
                 <svg className="w-8 h-8 text-green-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
                 </svg>
               </div>
-              <p className="text-[18px] font-bold text-notion-black mb-2">Đăng ký thành công!</p>
+              <p className="text-[18px] font-bold text-notion-black dark:text-white mb-2">Đăng ký thành công!</p>
               <p className="text-[14px] text-warm-gray-500 leading-relaxed mb-1">
                 Tài khoản của bạn đã được tạo thành công.
               </p>
               <p className="text-[13px] text-warm-gray-500">
                 Đang chuyển đến trang đăng nhập...
               </p>
-              {/* Progress bar */}
               <div className="mt-4 h-1 bg-warm-white rounded-full overflow-hidden">
                 <div className="h-full bg-green-400 rounded-full animate-progress" />
               </div>
@@ -98,13 +95,12 @@ export default function Register() {
 
               <div>
                 <label className="block text-[13px] font-medium text-warm-gray-500 dark:text-neutral-400 mb-[6px]">Mật khẩu</label>
-                <input
-                  type="password" required
+                <PasswordInput
+                  required
                   placeholder="Tối thiểu 6 ký tự"
                   className="w-full border border-whisper dark:border-neutral-700 rounded-[6px] px-3 py-[9px] text-[15px] text-notion-black dark:text-neutral-100 focus:outline-none focus:ring-2 focus:ring-notion-blue/40 focus:border-notion-blue transition bg-notion-white dark:bg-neutral-800"
                   value={form.password} onChange={e => setForm({ ...form, password: e.target.value })}
                 />
-                {/* Thanh độ mạnh mật khẩu */}
                 {strength && (
                   <div className="mt-2">
                     <div className="h-1 bg-warm-white rounded-full overflow-hidden">
@@ -117,14 +113,14 @@ export default function Register() {
 
               <div>
                 <label className="block text-[13px] font-medium text-warm-gray-500 dark:text-neutral-400 mb-[6px]">Xác nhận mật khẩu</label>
-                <input
-                  type="password" required
+                <PasswordInput
+                  required
                   placeholder="Nhập lại mật khẩu"
-                  className={`w-full border rounded-[6px] px-3 py-[9px] text-[15px] text-notion-black dark:text-neutral-100 focus:outline-none focus:ring-2 transition bg-notion-white dark:bg-neutral-800
-                    ${form.confirm && form.confirm !== form.password
+                  className={`w-full border rounded-[6px] px-3 py-[9px] text-[15px] text-notion-black dark:text-neutral-100 focus:outline-none focus:ring-2 transition bg-notion-white dark:bg-neutral-800 ${
+                    form.confirm && form.confirm !== form.password
                       ? 'border-red-300 focus:ring-red-300/40'
-                      : 'border-whisper focus:ring-notion-blue/40 focus:border-notion-blue'
-                    }`}
+                      : 'border-whisper dark:border-neutral-700 focus:ring-notion-blue/40 focus:border-notion-blue'
+                  }`}
                   value={form.confirm} onChange={e => setForm({ ...form, confirm: e.target.value })}
                 />
                 {form.confirm && form.confirm !== form.password && (

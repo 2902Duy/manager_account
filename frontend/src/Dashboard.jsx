@@ -14,6 +14,7 @@ import TrashModal from './components/TrashModal';
 import ActivityLogModal from './components/ActivityLogModal';
 import ImportExportModal from './components/ImportExportModal';
 import UnlockModal from './components/UnlockModal';
+import PasswordInput from './components/PasswordInput';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
 
@@ -36,6 +37,9 @@ export default function Dashboard({ token, onLogout }) {
   const [unlockError, setUnlockError] = useState('');
   const [pendingAction, setPendingAction] = useState(null);
   const [showImportExport, setShowImportExport] = useState(false);
+  const [changePasswordForm, setChangePasswordForm] = useState({ currentPassword: '', newPassword: '', confirmPassword: '' });
+  const [changePasswordStatus, setChangePasswordStatus] = useState({ type: '', message: '' });
+  const [changePasswordLoading, setChangePasswordLoading] = useState(false);
 
   const user = JSON.parse(localStorage.getItem('user') || '{}');
 
@@ -149,6 +153,40 @@ export default function Dashboard({ token, onLogout }) {
       setOpenModal(false);
       fetchAccounts();
     } catch (err) { alert(err.response?.data?.error || 'Lỗi lưu dữ liệu'); }
+  };
+
+  const handleChangePassword = async (e) => {
+    e.preventDefault();
+    setChangePasswordStatus({ type: '', message: '' });
+
+    if (!changePasswordForm.currentPassword || !changePasswordForm.newPassword || !changePasswordForm.confirmPassword) {
+      return setChangePasswordStatus({ type: 'error', message: 'Vui lòng nhập đầy đủ thông tin mật khẩu.' });
+    }
+    if (changePasswordForm.newPassword.length < 6) {
+      return setChangePasswordStatus({ type: 'error', message: 'Mật khẩu mới phải có ít nhất 6 ký tự.' });
+    }
+    if (changePasswordForm.newPassword !== changePasswordForm.confirmPassword) {
+      return setChangePasswordStatus({ type: 'error', message: 'Mật khẩu xác nhận không khớp.' });
+    }
+    if (changePasswordForm.currentPassword === changePasswordForm.newPassword) {
+      return setChangePasswordStatus({ type: 'error', message: 'Mật khẩu mới phải khác mật khẩu hiện tại.' });
+    }
+
+    setChangePasswordLoading(true);
+    try {
+      await axios.post(`${API_URL}/api/auth/change-password`, {
+        currentPassword: changePasswordForm.currentPassword,
+        newPassword: changePasswordForm.newPassword,
+      }, { headers: { Authorization: `Bearer ${token}` } });
+
+      setChangePasswordForm({ currentPassword: '', newPassword: '', confirmPassword: '' });
+      setChangePasswordStatus({ type: 'success', message: 'Đã đổi mật khẩu thành công.' });
+      setIsLocked(true);
+    } catch (err) {
+      setChangePasswordStatus({ type: 'error', message: err.response?.data?.error || 'Không thể đổi mật khẩu.' });
+    } finally {
+      setChangePasswordLoading(false);
+    }
   };
 
   // Filter Logic
@@ -274,21 +312,74 @@ export default function Dashboard({ token, onLogout }) {
                   </button>
                 </div>
 
-                <div className="flex items-center justify-between pt-4 border-t border-whisper dark:border-neutral-700">
-                  <div>
-                    <p className="font-semibold text-[14px]">Mật khẩu Master</p>
-                    <p className="text-[13px] text-warm-gray-400">Thay đổi mật khẩu đăng nhập & giải mã.</p>
+                <form onSubmit={handleChangePassword} className="pt-4 border-t border-whisper dark:border-neutral-700">
+                  <div className="mb-4">
+                    <p className="font-semibold text-[14px]">Thay đổi mật khẩu</p>
+                    <p className="text-[13px] text-warm-gray-400">Nhập mật khẩu hiện tại để xác minh, sau đó đặt mật khẩu mới.</p>
                   </div>
-                  <button 
-                    onClick={() => {
-                      // Gửi mail reset mật khẩu hoặc mở modal đổi pass
-                      window.location.href = '/forgot-password';
-                    }}
-                    className="px-4 py-1.5 bg-warm-white dark:bg-neutral-700 hover:bg-whisper rounded-lg text-[13px] font-bold transition"
-                  >
-                    Đổi mật khẩu
-                  </button>
-                </div>
+
+                  <div className="grid gap-3">
+                    <div>
+                      <label className="block text-[12px] font-medium text-warm-gray-500 dark:text-neutral-400 mb-1.5">Mật khẩu hiện tại</label>
+                      <PasswordInput
+                        required
+                        placeholder="Nhập mật khẩu hiện tại"
+                        className="w-full bg-warm-white dark:bg-neutral-900 border border-whisper dark:border-neutral-700 rounded-[8px] px-3 py-2.5 text-[14px] focus:outline-none focus:ring-2 focus:ring-notion-blue/30 focus:border-notion-blue transition"
+                        value={changePasswordForm.currentPassword}
+                        onChange={e => {
+                          setChangePasswordStatus({ type: '', message: '' });
+                          setChangePasswordForm({ ...changePasswordForm, currentPassword: e.target.value });
+                        }}
+                      />
+                    </div>
+
+                    <div className="grid gap-3 md:grid-cols-2">
+                      <div>
+                        <label className="block text-[12px] font-medium text-warm-gray-500 dark:text-neutral-400 mb-1.5">Mật khẩu mới</label>
+                        <PasswordInput
+                          required
+                          placeholder="Tối thiểu 6 ký tự"
+                          className="w-full bg-warm-white dark:bg-neutral-900 border border-whisper dark:border-neutral-700 rounded-[8px] px-3 py-2.5 text-[14px] focus:outline-none focus:ring-2 focus:ring-notion-blue/30 focus:border-notion-blue transition"
+                          value={changePasswordForm.newPassword}
+                          onChange={e => {
+                            setChangePasswordStatus({ type: '', message: '' });
+                            setChangePasswordForm({ ...changePasswordForm, newPassword: e.target.value });
+                          }}
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-[12px] font-medium text-warm-gray-500 dark:text-neutral-400 mb-1.5">Xác nhận mật khẩu mới</label>
+                        <PasswordInput
+                          required
+                          placeholder="Nhập lại mật khẩu mới"
+                          className="w-full bg-warm-white dark:bg-neutral-900 border border-whisper dark:border-neutral-700 rounded-[8px] px-3 py-2.5 text-[14px] focus:outline-none focus:ring-2 focus:ring-notion-blue/30 focus:border-notion-blue transition"
+                          value={changePasswordForm.confirmPassword}
+                          onChange={e => {
+                            setChangePasswordStatus({ type: '', message: '' });
+                            setChangePasswordForm({ ...changePasswordForm, confirmPassword: e.target.value });
+                          }}
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  {changePasswordStatus.message && (
+                    <p className={`mt-3 text-[12px] font-medium ${changePasswordStatus.type === 'success' ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-500'}`}>
+                      {changePasswordStatus.message}
+                    </p>
+                  )}
+
+                  <div className="mt-4 flex justify-end">
+                    <button
+                      type="submit"
+                      disabled={changePasswordLoading}
+                      className="px-4 py-2 bg-notion-blue text-white hover:bg-notion-blue-hover disabled:opacity-60 rounded-lg text-[13px] font-bold transition"
+                    >
+                      {changePasswordLoading ? 'Đang đổi...' : 'Đổi mật khẩu'}
+                    </button>
+                  </div>
+                </form>
               </div>
             </div>
 

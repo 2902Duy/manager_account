@@ -270,6 +270,45 @@ app.post('/api/auth/reset-password', async (req, res) => {
 });
 
 // ─────────────────────────────────────────
+// [POST] /api/auth/change-password - Doi mat khau khi nguoi dung da dang nhap
+app.post('/api/auth/change-password', authMiddleware, async (req, res) => {
+  try {
+    const { currentPassword, newPassword } = req.body;
+
+    if (!currentPassword || !newPassword) {
+      return res.status(400).json({ error: 'Cần nhập mật khẩu hiện tại và mật khẩu mới' });
+    }
+    if (newPassword.length < 6) {
+      return res.status(400).json({ error: 'Mật khẩu mới phải có ít nhất 6 ký tự' });
+    }
+    if (currentPassword === newPassword) {
+      return res.status(400).json({ error: 'Mật khẩu mới phải khác mật khẩu hiện tại' });
+    }
+
+    const { error: verifyError } = await supabaseAuth.auth.signInWithPassword({
+      email: req.user.email,
+      password: currentPassword,
+    });
+
+    if (verifyError) {
+      return res.status(401).json({ error: 'Mật khẩu hiện tại không đúng' });
+    }
+
+    const { error: updateError } = await supabase.auth.admin.updateUserById(req.user.id, {
+      password: newPassword,
+    });
+
+    if (updateError) {
+      return res.status(400).json({ error: updateError.message });
+    }
+
+    res.json({ message: 'Đổi mật khẩu thành công' });
+  } catch (err) {
+    console.error('Change password error:', err);
+    res.status(500).json({ error: 'Lỗi hệ thống khi đổi mật khẩu' });
+  }
+});
+
 // Activity Log Helper
 // ─────────────────────────────────────────
 const logActivity = async (userId, accountId, action, details = {}) => {

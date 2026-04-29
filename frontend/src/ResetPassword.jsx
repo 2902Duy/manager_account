@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { useNavigate, Link } from 'react-router-dom';
+import PasswordInput from './components/PasswordInput';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
 
@@ -12,7 +13,6 @@ export default function ResetPassword() {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
 
-  // Dark mode sync
   useEffect(() => {
     const isDark = localStorage.getItem('theme') === 'dark';
     document.documentElement.classList.toggle('dark', isDark);
@@ -26,33 +26,16 @@ export default function ResetPassword() {
     if (password !== confirm) return setError('Mật khẩu xác nhận không khớp');
 
     setLoading(true);
-    
-    // Lưu ý: Supabase tự động xử lý access_token từ URL hash khi người dùng nhấn link từ email
-    // Ở đây ta có thể dùng client-side Supabase hoặc gọi API backend nếu backend có xử lý token.
-    // Tuy nhiên, cách đơn giản nhất là dùng trực tiếp Supabase Auth ở Frontend để update mật khẩu.
-    
-    // Vì project đang dùng axios gọi backend, tôi sẽ hướng dẫn gọi một API backend mới (nếu bạn muốn)
-    // Hoặc dùng trực tiếp logic Supabase. Ở đây tôi giả định bạn muốn xử lý qua API backend để đồng bộ.
-    
+
     try {
-      // Chúng ta sẽ gửi mật khẩu mới lên backend. 
-      // Nhưng quan trọng là phải gửi kèm theo "access_token" mà Supabase đính trên URL hash.
       const hash = window.location.hash;
       if (!hash) {
         throw new Error('Link không hợp lệ hoặc đã hết hạn. Vui lòng yêu cầu lại email.');
       }
 
-      // Backend cần nhận mật khẩu mới này
-      // Lưu ý: Cách chuẩn nhất của Supabase là thực hiện updateUser ở frontend.
-      // Tôi sẽ sử dụng logic: Người dùng click link -> Supabase xác thực -> hash chứa token.
-      // Chúng ta sẽ báo cho người dùng biết và hướng dẫn họ.
-      
-      // TẠM THỜI: Ta sẽ dùng logic trực tiếp với Supabase Auth ở đây nếu có client.
-      // Nếu không, ta gửi mật khẩu lên một endpoint backend.
-      
-      const response = await axios.post(`${API_URL}/api/auth/reset-password`, {
+      await axios.post(`${API_URL}/api/auth/reset-password`, {
         password,
-        hash: window.location.hash
+        hash
       });
 
       setSuccess(true);
@@ -94,8 +77,8 @@ export default function ResetPassword() {
 
               <div>
                 <label className="block text-[13px] font-medium text-warm-gray-500 dark:text-neutral-400 mb-[6px]">Mật khẩu mới</label>
-                <input
-                  type="password" required autoFocus
+                <PasswordInput
+                  required autoFocus
                   placeholder="Tối thiểu 6 ký tự"
                   className="w-full bg-notion-white dark:bg-neutral-800 border border-whisper dark:border-neutral-700 rounded-[6px] px-3 py-[9px] text-[15px] text-notion-black dark:text-neutral-100 focus:outline-none focus:ring-2 focus:ring-notion-blue/40 focus:border-notion-blue transition"
                   value={password} onChange={e => setPassword(e.target.value)}
@@ -104,8 +87,8 @@ export default function ResetPassword() {
 
               <div>
                 <label className="block text-[13px] font-medium text-warm-gray-500 dark:text-neutral-400 mb-[6px]">Xác nhận mật khẩu</label>
-                <input
-                  type="password" required
+                <PasswordInput
+                  required
                   placeholder="Nhập lại mật khẩu mới"
                   className="w-full bg-notion-white dark:bg-neutral-800 border border-whisper dark:border-neutral-700 rounded-[6px] px-3 py-[9px] text-[15px] text-notion-black dark:text-neutral-100 focus:outline-none focus:ring-2 focus:ring-notion-blue/40 focus:border-notion-blue transition"
                   value={confirm} onChange={e => setConfirm(e.target.value)}

@@ -1,14 +1,15 @@
 import React, { useState } from 'react';
 import { X, Tag as TagIcon } from 'lucide-react';
 import PasswordGenerator, { getStrength } from '../PasswordGenerator';
-import { motion } from 'framer-motion';
+import { motion as Motion } from 'framer-motion';
+import PasswordInput from './PasswordInput';
 
-export default function AddEditModal({ 
-  editingId, 
-  form, 
-  setForm, 
-  onSave, 
-  onClose 
+export default function AddEditModal({
+  editingId,
+  form,
+  setForm,
+  onSave,
+  onClose
 }) {
   const [tagInput, setTagInput] = useState('');
   const strength = getStrength(form.password || '');
@@ -29,28 +30,29 @@ export default function AddEditModal({
   };
 
   return (
-    <motion.div 
+    <Motion.div
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
       className="fixed inset-0 bg-warm-dark/40 dark:bg-black/60 backdrop-blur-[2px] flex items-end sm:items-center justify-center z-50 p-0 sm:p-4"
     >
-      <motion.div 
-        initial={{ y: "100%", opacity: 0 }}
+      <Motion.div
+        initial={{ y: '100%', opacity: 0 }}
         animate={{ y: 0, opacity: 1 }}
-        exit={{ y: "100%", opacity: 0 }}
+        exit={{ y: '100%', opacity: 0 }}
         transition={{ type: 'spring', damping: 25, stiffness: 300 }}
         className="bg-notion-white dark:bg-[#252525] border-t sm:border border-whisper dark:border-neutral-700 rounded-t-[16px] sm:rounded-[12px] shadow-deep p-6 sm:p-8 w-full max-w-[480px] max-h-[90vh] overflow-y-auto"
       >
         <div className="flex justify-between items-center mb-6">
           <h2 className="text-[20px] sm:text-[22px] font-bold tracking-[-0.25px] text-notion-black dark:text-white">{editingId ? 'Sửa tài khoản' : 'Thêm tài khoản'}</h2>
-          <button onClick={onClose} className="w-8 h-8 flex items-center justify-center bg-warm-white dark:bg-neutral-700 rounded-full text-warm-gray-500 dark:text-neutral-300"><X size={16}/></button>
+          <button onClick={onClose} className="w-8 h-8 flex items-center justify-center bg-warm-white dark:bg-neutral-700 rounded-full text-warm-gray-500 dark:text-neutral-300"><X size={16} /></button>
         </div>
+
         <form onSubmit={onSave} className="flex flex-col gap-[14px]">
           <div className="flex gap-3">
             <div className="flex-1">
               <label className="block text-[13px] font-medium text-warm-gray-500 dark:text-neutral-400 mb-[4px]">Loại tài khoản</label>
-              <input required placeholder="VD: Game, Công việc" className="w-full bg-notion-white dark:bg-neutral-800 border border-whisper dark:border-neutral-700 rounded-[6px] px-3 py-[10px] sm:py-[8px] text-[15px] text-notion-black dark:text-neutral-100 focus:outline-none focus:ring-[2px] focus:ring-notion-blue/50 focus:border-notion-blue transition" value={form.account_type} onChange={e => setForm({...form, account_type: e.target.value})} />
+              <input required placeholder="VD: Game, Công việc" className="w-full bg-notion-white dark:bg-neutral-800 border border-whisper dark:border-neutral-700 rounded-[6px] px-3 py-[10px] sm:py-[8px] text-[15px] text-notion-black dark:text-neutral-100 focus:outline-none focus:ring-[2px] focus:ring-notion-blue/50 focus:border-notion-blue transition" value={form.account_type} onChange={e => setForm({ ...form, account_type: e.target.value })} />
             </div>
           </div>
 
@@ -66,9 +68,9 @@ export default function AddEditModal({
             </div>
             <div className="relative">
               <TagIcon size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-warm-gray-300" />
-              <input 
-                placeholder="Nhập tag và ấn Enter..." 
-                className="w-full bg-notion-white dark:bg-neutral-800 border border-whisper dark:border-neutral-700 rounded-[6px] pl-9 pr-3 py-[10px] sm:py-[8px] text-[14px] text-notion-black dark:text-neutral-100 focus:outline-none focus:ring-[2px] focus:ring-notion-blue/50 transition" 
+              <input
+                placeholder="Nhập tag và ấn Enter..."
+                className="w-full bg-notion-white dark:bg-neutral-800 border border-whisper dark:border-neutral-700 rounded-[6px] pl-9 pr-3 py-[10px] sm:py-[8px] text-[14px] text-notion-black dark:text-neutral-100 focus:outline-none focus:ring-[2px] focus:ring-notion-blue/50 transition"
                 value={tagInput}
                 onChange={e => setTagInput(e.target.value)}
                 onKeyDown={addTag}
@@ -78,13 +80,19 @@ export default function AddEditModal({
 
           <div>
             <label className="block text-[13px] font-medium text-warm-gray-500 dark:text-neutral-400 mb-[4px]">Tài khoản</label>
-            <input required placeholder="Tên đăng nhập hoặc email" className="w-full bg-notion-white dark:bg-neutral-800 border border-whisper dark:border-neutral-700 rounded-[6px] px-3 py-[10px] sm:py-[8px] text-[15px] text-notion-black dark:text-neutral-100 focus:outline-none focus:ring-[2px] focus:ring-notion-blue/50 focus:border-notion-blue transition" value={form.account} onChange={e => setForm({...form, account: e.target.value})} />
+            <input required placeholder="Tên đăng nhập hoặc email" className="w-full bg-notion-white dark:bg-neutral-800 border border-whisper dark:border-neutral-700 rounded-[6px] px-3 py-[10px] sm:py-[8px] text-[15px] text-notion-black dark:text-neutral-100 focus:outline-none focus:ring-[2px] focus:ring-notion-blue/50 focus:border-notion-blue transition" value={form.account} onChange={e => setForm({ ...form, account: e.target.value })} />
           </div>
+
           <div>
             <label className="block text-[13px] font-medium text-warm-gray-500 dark:text-neutral-400 mb-[4px]">Mật khẩu</label>
-            <input required placeholder="Mật khẩu" type="text" className="w-full bg-notion-white dark:bg-neutral-800 border border-whisper dark:border-neutral-700 rounded-[6px] px-3 py-[10px] sm:py-[8px] text-[15px] text-notion-black dark:text-neutral-100 focus:outline-none focus:ring-[2px] focus:ring-notion-blue/50 focus:border-notion-blue transition font-mono" value={form.password} onChange={e => setForm({...form, password: e.target.value})} />
-            
-            {/* Strength Indicator */}
+            <PasswordInput
+              required
+              placeholder="Mật khẩu"
+              className="w-full bg-notion-white dark:bg-neutral-800 border border-whisper dark:border-neutral-700 rounded-[6px] px-3 py-[10px] sm:py-[8px] text-[15px] text-notion-black dark:text-neutral-100 focus:outline-none focus:ring-[2px] focus:ring-notion-blue/50 focus:border-notion-blue transition font-mono"
+              value={form.password}
+              onChange={e => setForm({ ...form, password: e.target.value })}
+            />
+
             <div className="mt-2 flex items-center gap-2">
               <div className="flex gap-1 flex-1">
                 {[1, 2, 3, 4].map(i => (
@@ -93,23 +101,26 @@ export default function AddEditModal({
               </div>
               <span className={`text-[11px] font-bold min-w-[70px] text-right ${strength.text}`}>{strength.label}</span>
             </div>
-            
-            <PasswordGenerator onUsePassword={(pwd) => setForm({...form, password: pwd})} />
+
+            <PasswordGenerator onUsePassword={(pwd) => setForm({ ...form, password: pwd })} />
           </div>
+
           <div>
             <label className="block text-[13px] font-medium text-warm-gray-500 dark:text-neutral-400 mb-[4px]">Ghi chú</label>
-            <textarea placeholder="Thêm ghi chú ở đây..." className="w-full bg-notion-white dark:bg-neutral-800 border border-whisper dark:border-neutral-700 rounded-[6px] px-3 py-[10px] sm:py-[8px] text-[15px] text-notion-black dark:text-neutral-100 focus:outline-none focus:ring-[2px] focus:ring-notion-blue/50 focus:border-notion-blue transition min-h-[80px] resize-none" value={form.information} onChange={e => setForm({...form, information: e.target.value})} />
+            <textarea placeholder="Thêm ghi chú ở đây..." className="w-full bg-notion-white dark:bg-neutral-800 border border-whisper dark:border-neutral-700 rounded-[6px] px-3 py-[10px] sm:py-[8px] text-[15px] text-notion-black dark:text-neutral-100 focus:outline-none focus:ring-[2px] focus:ring-notion-blue/50 focus:border-notion-blue transition min-h-[80px] resize-none" value={form.information} onChange={e => setForm({ ...form, information: e.target.value })} />
           </div>
+
           <div>
             <label className="block text-[13px] font-medium text-warm-gray-500 dark:text-neutral-400 mb-[4px]">Gmail liên kết</label>
-            <input placeholder="Email khôi phục" className="w-full bg-notion-white dark:bg-neutral-800 border border-whisper dark:border-neutral-700 rounded-[6px] px-3 py-[10px] sm:py-[8px] text-[15px] text-notion-black dark:text-neutral-100 focus:outline-none focus:ring-[2px] focus:ring-notion-blue/50 focus:border-notion-blue transition" value={form.gmail_link} onChange={e => setForm({...form, gmail_link: e.target.value})} />
+            <input placeholder="Email khôi phục" className="w-full bg-notion-white dark:bg-neutral-800 border border-whisper dark:border-neutral-700 rounded-[6px] px-3 py-[10px] sm:py-[8px] text-[15px] text-notion-black dark:text-neutral-100 focus:outline-none focus:ring-[2px] focus:ring-notion-blue/50 focus:border-notion-blue transition" value={form.gmail_link} onChange={e => setForm({ ...form, gmail_link: e.target.value })} />
           </div>
+
           <div className="flex gap-3 mt-4 pt-4 sm:pt-6 pb-2 sm:pb-0 border-t border-whisper dark:border-neutral-700 justify-end">
             <button type="button" onClick={onClose} className="hidden sm:block px-4 py-[8px] text-[15px] font-medium hover:bg-warm-white dark:hover:bg-neutral-700 text-notion-black dark:text-neutral-200 rounded-[6px] border border-whisper dark:border-neutral-700 transition">Hủy</button>
             <button type="submit" className="w-full sm:w-auto px-5 py-[12px] sm:py-[8px] text-[15px] font-semibold bg-notion-blue hover:bg-notion-blue-hover text-white rounded-[8px] sm:rounded-[6px] transition active:scale-[0.98]">{editingId ? 'Cập nhật' : 'Lưu tài khoản'}</button>
           </div>
         </form>
-      </motion.div>
-    </motion.div>
+      </Motion.div>
+    </Motion.div>
   );
 }

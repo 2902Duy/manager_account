@@ -11,7 +11,7 @@ import {
   ChevronRight,
   User
 } from 'lucide-react';
-import { motion } from 'framer-motion';
+import { motion as Motion } from 'framer-motion';
 
 export default function Sidebar({
   activeTab,
@@ -33,7 +33,7 @@ export default function Sidebar({
   const displayName = userEmail?.split('@')[0] || 'Người dùng';
 
   return (
-    <motion.aside
+    <Motion.aside
       initial={false}
       animate={{ width: isCollapsed ? 70 : 240 }}
       className="fixed left-0 top-0 z-40 hidden h-screen flex-col border-r border-whisper bg-[#fbfaf8] text-notion-black shadow-[1px_0_0_rgba(0,0,0,0.02)] transition-colors duration-300 dark:border-neutral-800 dark:bg-[#171717] dark:text-white md:flex"
@@ -75,7 +75,7 @@ export default function Sidebar({
             }`}
           >
             {activeTab === item.id && (
-              <motion.span
+              <Motion.span
                 layoutId="sidebar-active-indicator"
                 className="absolute left-0 h-6 w-1 rounded-r-full bg-notion-blue dark:bg-blue-400"
               />
@@ -133,6 +133,6 @@ export default function Sidebar({
           {!isCollapsed && <span className="text-[14px] font-semibold">Đăng xuất</span>}
         </button>
       </div>
-    </motion.aside>
+    </Motion.aside>
   );
 }
