@@ -321,7 +321,7 @@ export default function Dashboard({ token, onLogout }) {
         activeTab={activeTab} setActiveTab={setActiveTab}
         dark={dark} setDark={setDark}
         isLocked={isLocked} onLogout={onLogout}
-        onLock={() => setIsLocked(true)}
+        onLock={() => isLocked ? setShowUnlockModal(true) : setIsLocked(true)}
         userEmail={user.email}
         isCollapsed={isCollapsed} setIsCollapsed={setIsCollapsed}
       />
