@@ -4,6 +4,10 @@ import { Link } from 'react-router-dom';
 import PasswordInput from './components/PasswordInput';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+const LOCAL_TEST_USER = {
+  email: 'test@local.dev',
+  password: 'Test@123456',
+};
 
 export default function Login({ onLogin }) {
   const [email, setEmail] = useState('');
@@ -16,6 +20,15 @@ export default function Login({ onLogin }) {
     setError('');
     setLoading(true);
     try {
+      if (
+        import.meta.env.DEV &&
+        email.trim().toLowerCase() === LOCAL_TEST_USER.email &&
+        password === LOCAL_TEST_USER.password
+      ) {
+        onLogin('local-dev-token', { id: 'local-dev-user', email: LOCAL_TEST_USER.email });
+        return;
+      }
+
       const res = await axios.post(`${API_URL}/api/auth/login`, { email, password });
       onLogin(res.data.access_token, res.data.user);
     } catch (err) {
@@ -39,6 +52,12 @@ export default function Login({ onLogin }) {
             {error && (
               <div className="text-[13px] text-red-600 px-3 py-2 rounded-[6px] bg-red-50 border border-red-200">
                 {error}
+              </div>
+            )}
+
+            {import.meta.env.DEV && (
+              <div className="text-[13px] text-warm-gray-500 dark:text-neutral-400 px-3 py-2 rounded-[6px] bg-warm-white dark:bg-neutral-800 border border-whisper dark:border-neutral-700">
+                Test local: <span className="font-mono">test@local.dev</span> / <span className="font-mono">Test@123456</span>
               </div>
             )}
 

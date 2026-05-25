@@ -17,8 +17,51 @@ import UnlockModal from './components/UnlockModal';
 import PasswordInput from './components/PasswordInput';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+const LOCAL_DEV_TOKEN = 'local-dev-token';
+const LOCAL_ACCOUNTS_KEY = 'local-dev-accounts';
+const LOCAL_TEST_PASSWORD = 'Test@123456';
+const LOCAL_SAMPLE_ACCOUNTS = [
+  {
+    id: 1,
+    account_type: 'Email',
+    account: 'demo@gmail.com',
+    password: 'Gmail@Test123!',
+    information: 'Tai khoan mau de kiem tra giao dien local',
+    gmail_link: 'demo@gmail.com',
+    tags: ['demo', 'local'],
+    strength_score: 90,
+    is_pinned: true,
+  },
+  {
+    id: 2,
+    account_type: 'Game',
+    account: 'demo_player',
+    password: 'Game@Test123!',
+    information: 'Du lieu chi nam trong localStorage cua trinh duyet',
+    gmail_link: '',
+    tags: ['test'],
+    strength_score: 85,
+    is_pinned: false,
+  },
+];
+
+const readLocalAccounts = () => {
+  try {
+    const saved = localStorage.getItem(LOCAL_ACCOUNTS_KEY);
+    if (saved) return JSON.parse(saved);
+  } catch (e) {
+    console.error(e);
+  }
+  localStorage.setItem(LOCAL_ACCOUNTS_KEY, JSON.stringify(LOCAL_SAMPLE_ACCOUNTS));
+  return LOCAL_SAMPLE_ACCOUNTS;
+};
+
+const writeLocalAccounts = (nextAccounts) => {
+  localStorage.setItem(LOCAL_ACCOUNTS_KEY, JSON.stringify(nextAccounts));
+};
 
 export default function Dashboard({ token, onLogout }) {
+  const isLocalDevSession = import.meta.env.DEV && token === LOCAL_DEV_TOKEN;
   const [accounts, setAccounts] = useState([]);
   const [showPwd, setShowPwd] = useState({});
   const [openModal, setOpenModal] = useState(false);
@@ -68,6 +111,11 @@ export default function Dashboard({ token, onLogout }) {
   }, [isLocked]);
 
   const fetchAccounts = async () => {
+    if (isLocalDevSession) {
+      setAccounts(readLocalAccounts());
+      return;
+    }
+
     try {
       const res = await axios.get(`${API_URL}/api/accounts`, { headers: { Authorization: `Bearer ${token}` } });
       setAccounts(res.data);
@@ -104,6 +152,23 @@ export default function Dashboard({ token, onLogout }) {
     e.preventDefault();
     setUnlockError('');
     try {
+      if (isLocalDevSession) {
+        if (unlockPassword !== LOCAL_TEST_PASSWORD) throw new Error('Invalid local password');
+        setIsLocked(false);
+        setShowUnlockModal(false);
+        setUnlockPassword('');
+        if (pendingAction) {
+          if (pendingAction.type === 'view') setShowPwd(prev => ({ ...prev, [pendingAction.id]: !prev[pendingAction.id] }));
+          else if (pendingAction.type === 'copy') {
+            navigator.clipboard.writeText(pendingAction.text);
+            setCopied(pendingAction.id);
+            setTimeout(() => setCopied(null), 1500);
+          }
+          setPendingAction(null);
+        }
+        return;
+      }
+
       await axios.post(`${API_URL}/api/auth/login`, { email: user.email, password: unlockPassword });
       setIsLocked(false);
       setShowUnlockModal(false);
@@ -121,6 +186,13 @@ export default function Dashboard({ token, onLogout }) {
   };
 
   const handlePin = async (id, currentPin) => {
+    if (isLocalDevSession) {
+      const next = accounts.map(acc => acc.id === id ? { ...acc, is_pinned: !currentPin } : acc);
+      setAccounts(next);
+      writeLocalAccounts(next);
+      return;
+    }
+
     try {
       await axios.patch(`${API_URL}/api/accounts/${id}/pin`, { is_pinned: !currentPin }, { headers: { Authorization: `Bearer ${token}` } });
       fetchAccounts();
@@ -129,6 +201,13 @@ export default function Dashboard({ token, onLogout }) {
 
   const handleDelete = async (id) => {
     if (!confirm('Chuyển tài khoản này vào thùng rác?')) return;
+    if (isLocalDevSession) {
+      const next = accounts.filter(acc => acc.id !== id);
+      setAccounts(next);
+      writeLocalAccounts(next);
+      return;
+    }
+
     await axios.delete(`${API_URL}/api/accounts/${id}`, { headers: { Authorization: `Bearer ${token}` } });
     fetchAccounts();
   };
@@ -148,6 +227,16 @@ export default function Dashboard({ token, onLogout }) {
   const handleSave = async (e, formOverride) => {
     e.preventDefault();
     const payload = formOverride || form;
+    if (isLocalDevSession) {
+      const next = editingId
+        ? accounts.map(acc => acc.id === editingId ? { ...acc, ...payload, id: editingId } : acc)
+        : [...accounts, { ...payload, id: Date.now(), strength_score: 0, is_pinned: false }];
+      setAccounts(next);
+      writeLocalAccounts(next);
+      setOpenModal(false);
+      return;
+    }
+
     try {
       if (editingId) await axios.put(`${API_URL}/api/accounts/${editingId}`, payload, { headers: { Authorization: `Bearer ${token}` } });
       else await axios.post(`${API_URL}/api/accounts`, payload, { headers: { Authorization: `Bearer ${token}` } });
@@ -175,6 +264,17 @@ export default function Dashboard({ token, onLogout }) {
 
     setChangePasswordLoading(true);
     try {
+      if (isLocalDevSession) {
+        if (changePasswordForm.currentPassword !== LOCAL_TEST_PASSWORD) {
+          setChangePasswordStatus({ type: 'error', message: 'Mat khau local hien tai khong dung.' });
+          return;
+        }
+        setChangePasswordForm({ currentPassword: '', newPassword: '', confirmPassword: '' });
+        setChangePasswordStatus({ type: 'success', message: 'Local test: khong doi mat khau that.' });
+        setIsLocked(true);
+        return;
+      }
+
       await axios.post(`${API_URL}/api/auth/change-password`, {
         currentPassword: changePasswordForm.currentPassword,
         newPassword: changePasswordForm.newPassword,

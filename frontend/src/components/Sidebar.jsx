@@ -45,7 +45,7 @@ export default function Sidebar({
           </div>
           {!isCollapsed && (
             <div className="min-w-0">
-              <p className="truncate text-[15px] font-bold tracking-tight">Account Vault</p>
+              <p className="truncate font-display text-[17px]">Account Vault</p>
               <p className="truncate text-[11px] font-medium text-warm-gray-500 dark:text-neutral-500">Secure workspace</p>
             </div>
           )}
