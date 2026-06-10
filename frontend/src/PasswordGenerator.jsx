@@ -8,6 +8,7 @@ const CHAR_SETS = {
   symbols: '!@#$%^&*()_+-=[]{}|;:,.<>?',
 };
 
+// eslint-disable-next-line react-refresh/only-export-components
 export function getStrength(password) {
   if (!password) return { label: 'Trống', score: 0, color: 'bg-warm-gray-300 dark:bg-neutral-600', text: 'text-warm-gray-300 dark:text-neutral-600' };
   let score = 0;
@@ -58,6 +59,7 @@ export default function PasswordGenerator({ onUsePassword }) {
   }, [length, options]);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     if (isOpen && !generated) generate();
   }, [isOpen, generated, generate]);
 

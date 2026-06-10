@@ -1,6 +1,6 @@
 import React from 'react';
 import { Pin, Eye, EyeOff, Check, Copy, PinOff, Edit2, Trash2, MoreVertical } from 'lucide-react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion as Motion, AnimatePresence } from 'framer-motion';
 
 export default function AccountTable({ 
   accounts, 
@@ -31,7 +31,7 @@ export default function AccountTable({
             <tbody>
               <AnimatePresence initial={false}>
                 {accounts.map((acc) => (
-                  <motion.tr 
+                  <Motion.tr
                     layout
                     initial={{ opacity: 0, y: -10 }}
                     animate={{ opacity: 1, y: 0 }}
@@ -80,7 +80,7 @@ export default function AccountTable({
                         <button onClick={() => onDelete(acc.id)} className="text-warm-gray-300 dark:text-neutral-500 hover:bg-red-50 dark:hover:bg-red-500/10 hover:text-red-500 transition p-1.5 rounded-[6px]" title="Xóa"><Trash2 size={15}/></button>
                       </div>
                     </td>
-                  </motion.tr>
+                  </Motion.tr>
                 ))}
               </AnimatePresence>
             </tbody>
@@ -92,7 +92,7 @@ export default function AccountTable({
       <div className="sm:hidden space-y-3">
         <AnimatePresence initial={false}>
           {accounts.map((acc) => (
-            <motion.div 
+            <Motion.div
               layout
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
@@ -158,7 +158,7 @@ export default function AccountTable({
                   <Trash2 size={14}/> Xóa
                 </button>
               </div>
-            </motion.div>
+            </Motion.div>
           ))}
         </AnimatePresence>
       </div>

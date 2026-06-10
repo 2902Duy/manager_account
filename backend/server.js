@@ -27,7 +27,7 @@ const supabaseAuth = createClient(
 );
 
 // ─────────────────────────────────────────
-// Encryption Helpers (AES-256-CBC)
+// Encryption Helpers (AES-256-GCM, with CBC legacy decrypt)
 // ─────────────────────────────────────────
 if (!process.env.ENCRYPTION_KEY) {
   console.error('❌ LỖI NGHIÊM TRỌNG: Thiếu biến môi trường ENCRYPTION_KEY!');
@@ -35,9 +35,16 @@ if (!process.env.ENCRYPTION_KEY) {
   process.exit(1);
 }
 
-const ALGORITHM = 'aes-256-cbc';
+const ALGORITHM = 'aes-256-gcm';
+const LEGACY_ALGORITHM = 'aes-256-cbc';
 const ENCRYPTION_KEY = Buffer.from(process.env.ENCRYPTION_KEY, 'hex'); // 32 bytes
-const IV_LENGTH = 16; 
+if (ENCRYPTION_KEY.length !== 32) {
+  console.error('ENCRYPTION_KEY must be 32 bytes hex encoded.');
+  process.exit(1);
+}
+const IV_LENGTH = 12;
+const LEGACY_IV_LENGTH = 16;
+const GCM_PREFIX = 'gcm:v1';
 
 const encrypt = (text) => {
   if (!text) return text;
@@ -45,16 +52,27 @@ const encrypt = (text) => {
   const cipher = crypto.createCipheriv(ALGORITHM, ENCRYPTION_KEY, iv);
   let encrypted = cipher.update(text);
   encrypted = Buffer.concat([encrypted, cipher.final()]);
-  return iv.toString('hex') + ':' + encrypted.toString('hex');
+  const authTag = cipher.getAuthTag();
+  return [GCM_PREFIX, iv.toString('hex'), authTag.toString('hex'), encrypted.toString('hex')].join(':');
 };
 
 const decrypt = (text) => {
   try {
     if (!text || !text.includes(':')) return text;
+    if (text.startsWith(`${GCM_PREFIX}:`)) {
+      const [, , ivHex, tagHex, encryptedHex] = text.split(':');
+      const decipher = crypto.createDecipheriv(ALGORITHM, ENCRYPTION_KEY, Buffer.from(ivHex, 'hex'));
+      decipher.setAuthTag(Buffer.from(tagHex, 'hex'));
+      let decrypted = decipher.update(Buffer.from(encryptedHex, 'hex'));
+      decrypted = Buffer.concat([decrypted, decipher.final()]);
+      return decrypted.toString();
+    }
+
     const textParts = text.split(':');
     const iv = Buffer.from(textParts.shift(), 'hex');
+    if (iv.length !== LEGACY_IV_LENGTH) throw new Error('Invalid legacy IV length');
     const encryptedText = Buffer.from(textParts.join(':'), 'hex');
-    const decipher = crypto.createDecipheriv(ALGORITHM, ENCRYPTION_KEY, iv);
+    const decipher = crypto.createDecipheriv(LEGACY_ALGORITHM, ENCRYPTION_KEY, iv);
     let decrypted = decipher.update(encryptedText);
     decrypted = Buffer.concat([decrypted, decipher.final()]);
     return decrypted.toString();
@@ -77,6 +95,10 @@ const accountSchema = z.object({
   strength_score: z.number().optional().default(0),
 });
 
+const accountUpdateSchema = accountSchema.extend({
+  password: z.string().optional(),
+});
+
 // Helper tính điểm sức khỏe mật khẩu (bản backend)
 const calculateStrength = (password) => {
   if (!password) return 0;
@@ -96,26 +118,37 @@ const calculateStrength = (password) => {
 // ─────────────────────────────────────────
 
 // Hỗ trợ nhiều origin cách nhau bởi dấu phẩy, tự thêm https:// nếu thiếu
+const normalizeOrigin = (origin) => {
+  if (!origin) return '';
+  let normalized = origin.trim().replace(/\/+$/, '');
+  if (normalized && !normalized.startsWith('http')) normalized = 'https://' + normalized;
+  return normalized;
+};
+
 const allowedOrigins = [
   'http://localhost:5173',
   'http://localhost:5174',
-  ...(process.env.CORS_ORIGIN || '').split(',').map(o => {
-    o = o.trim().replace(/\/+$/, '');
-    if (o && !o.startsWith('http')) o = 'https://' + o;
-    return o;
-  }),
+  ...(process.env.CORS_ORIGIN || '').split(',').map(normalizeOrigin),
 ].filter(Boolean);
 
 console.log('✅ Allowed CORS origins:', allowedOrigins);
+
+const isAllowedOrigin = (origin) => allowedOrigins.includes(normalizeOrigin(origin));
+
+const getResetRedirectOrigin = (origin) => {
+  const normalized = normalizeOrigin(origin);
+  if (normalized && isAllowedOrigin(normalized)) return normalized;
+  const configuredOrigin = (process.env.CORS_ORIGIN || '').split(',').map(normalizeOrigin).find(Boolean);
+  return configuredOrigin || 'http://localhost:5173';
+};
 
 app.use(cors({
   origin: (origin, cb) => {
     // Không có origin (server-to-server, Postman) → cho phép
     if (!origin) return cb(null, true);
     // Kiểm tra danh sách cho phép
-    if (allowedOrigins.includes(origin)) return cb(null, true);
+    if (isAllowedOrigin(origin)) return cb(null, true);
     // Tự động cho phép mọi *.vercel.app subdomain
-    if (origin.endsWith('.vercel.app')) return cb(null, true);
     console.log('❌ CORS blocked origin:', origin);
     cb(new Error('Not allowed by CORS'));
   },
@@ -206,7 +239,7 @@ app.post('/api/auth/forgot-password', async (req, res) => {
     if (!email) return res.status(400).json({ error: 'Cần nhập email' });
 
     // Làm sạch origin để tránh lỗi thừa dấu /
-    const origin = (req.headers.origin || process.env.CORS_ORIGIN || 'http://localhost:5173').replace(/\/+$/, '');
+    const origin = getResetRedirectOrigin(req.headers.origin);
     const redirectTo = `${origin}/reset-password`;
 
     console.log('📬 Đang gửi yêu cầu Reset Password:');
@@ -336,6 +369,18 @@ const cleanupTrash = async (userId) => {
   } catch (e) { console.error('Cleanup trash error:', e); }
 };
 
+const maskAccount = (account) => ({
+  ...account,
+  password: null,
+  has_password: Boolean(account?.password),
+});
+
+const verifyUserPassword = async (email, password) => {
+  if (!email || !password) return false;
+  const { error } = await supabaseAuth.auth.signInWithPassword({ email, password });
+  return !error;
+};
+
 // Read All — chỉ trả về accounts chưa xóa của user hiện tại
 app.get('/api/accounts', authMiddleware, async (req, res) => {
   // Tiện tay dọn dẹp thùng rác cũ
@@ -353,12 +398,31 @@ app.get('/api/accounts', authMiddleware, async (req, res) => {
   if (error) { console.error(error); return res.status(500).json({ error: 'Lỗi khi tải dữ liệu' }); }
   
   // Giải mã mật khẩu trước khi trả về
-  const decryptedData = data.map(acc => ({
-    ...acc,
-    password: decrypt(acc.password)
-  }));
-  
-  res.json(decryptedData);
+  res.json(data.map(maskAccount));
+});
+
+app.post('/api/accounts/:id/reveal', authMiddleware, async (req, res) => {
+  try {
+    const id = parseInt(req.params.id);
+    const { currentPassword } = req.body;
+
+    const isVerified = await verifyUserPassword(req.user.email, currentPassword);
+    if (!isVerified) return res.status(401).json({ error: 'Mat khau khong dung' });
+
+    const { data, error } = await supabase
+      .from('stored_accounts')
+      .select('id,password')
+      .eq('id', id)
+      .eq('user_id', req.user.id)
+      .single();
+
+    if (error || !data) return res.status(404).json({ error: 'Khong tim thay tai khoan' });
+
+    res.json({ id: data.id, password: decrypt(data.password) });
+  } catch (err) {
+    console.error('Reveal password error:', err);
+    res.status(500).json({ error: 'Loi server' });
+  }
 });
 
 // Create
@@ -388,7 +452,7 @@ app.post('/api/accounts', authMiddleware, async (req, res) => {
     logActivity(req.user.id, data.id, 'create', { account_name: account });
     
     // Trả về dữ liệu đã giải mã để frontend cập nhật UI ngay
-    res.status(201).json({ ...data, password: decrypt(data.password) });
+    res.status(201).json(maskAccount(data));
   } catch (err) {
     if (err instanceof z.ZodError) return res.status(400).json({ error: err.errors[0].message });
     res.status(500).json({ error: 'Lỗi server' });
@@ -420,10 +484,8 @@ app.post('/api/accounts/bulk', authMiddleware, async (req, res) => {
 app.put('/api/accounts/:id', authMiddleware, async (req, res) => {
   try {
     const id = parseInt(req.params.id);
-    const validated = accountSchema.parse(req.body);
+    const validated = accountUpdateSchema.parse(req.body);
     const { account_type, account, password, information, gmail_link, tags } = validated;
-
-    const strength_score = calculateStrength(password);
 
     // 1. Lấy dữ liệu CŨ trước khi cập nhật để so sánh
     const { data: oldData } = await supabase
@@ -436,20 +498,23 @@ app.put('/api/accounts/:id', authMiddleware, async (req, res) => {
     if (!oldData) return res.status(404).json({ message: 'Không tìm thấy tài khoản' });
 
     // Giải mã pass cũ để so sánh
-    const oldDecryptedPassword = decrypt(oldData.password);
+    const updatePayload = {
+      account_type,
+      account,
+      information,
+      gmail_link,
+      tags: tags || [],
+    };
+
+    if (password) {
+      updatePayload.password = encrypt(password);
+      updatePayload.strength_score = calculateStrength(password);
+    }
 
     // 2. Thực hiện cập nhật dữ liệu mới
     const { data: newData, error } = await supabase
       .from('stored_accounts')
-      .update({ 
-        account_type, 
-        account, 
-        password: encrypt(password), 
-        information, 
-        gmail_link,
-        tags: tags || [],
-        strength_score
-      })
+      .update(updatePayload)
       .eq('id', id)
       .eq('user_id', req.user.id)
       .select()
@@ -459,10 +524,10 @@ app.put('/api/accounts/:id', authMiddleware, async (req, res) => {
 
     // 3. So sánh các trường để tìm thay đổi
     const changes = {};
-    const fields = ['account_type', 'account', 'password', 'information', 'gmail_link'];
+    const fields = ['account_type', 'account', 'information', 'gmail_link'];
     
     fields.forEach(field => {
-      const oldVal = field === 'password' ? oldDecryptedPassword : (oldData[field] || '');
+      const oldVal = oldData[field] || '';
       const newVal = req.body[field] || '';
       
       if (oldVal !== newVal) {
@@ -472,6 +537,10 @@ app.put('/api/accounts/:id', authMiddleware, async (req, res) => {
         };
       }
     });
+
+    if (password) {
+      changes.password = { changed: true };
+    }
 
     const oldTags = oldData.tags || [];
     const newTags = tags || [];
@@ -488,7 +557,7 @@ app.put('/api/accounts/:id', authMiddleware, async (req, res) => {
       changes: Object.keys(changes).length > 0 ? changes : null
     });
 
-    res.json({ ...newData, password: decrypt(newData.password) });
+    res.json(maskAccount(newData));
   } catch (err) {
     if (err instanceof z.ZodError) return res.status(400).json({ error: err.errors[0].message });
     res.status(500).json({ error: 'Lỗi server' });
@@ -544,12 +613,7 @@ app.get('/api/accounts/trash', authMiddleware, async (req, res) => {
   if (error) { console.error(error); return res.status(500).json({ error: 'Lỗi' }); }
   
   // Giải mã
-  const decryptedData = data.map(acc => ({
-    ...acc,
-    password: decrypt(acc.password)
-  }));
-  
-  res.json(decryptedData);
+  res.json(data.map(maskAccount));
 });
 
 // Khôi phục
@@ -566,7 +630,7 @@ app.post('/api/accounts/:id/restore', authMiddleware, async (req, res) => {
 
   if (error) { console.error(error); return res.status(500).json({ error: 'Lỗi khôi phục' }); }
   logActivity(req.user.id, id, 'restore', { account_name: data?.account });
-  res.json({ ...data, password: decrypt(data.password) });
+  res.json(maskAccount(data));
 });
 
 // Xóa vĩnh viễn

@@ -77,6 +77,7 @@ export default function Dashboard({ token, onLogout }) {
   const [isLocked, setIsLocked] = useState(true);
   const [showUnlockModal, setShowUnlockModal] = useState(false);
   const [unlockPassword, setUnlockPassword] = useState('');
+  const [vaultPassword, setVaultPassword] = useState('');
   const [unlockError, setUnlockError] = useState('');
   const [pendingAction, setPendingAction] = useState(null);
   const [showImportExport, setShowImportExport] = useState(false);
@@ -84,7 +85,37 @@ export default function Dashboard({ token, onLogout }) {
   const [changePasswordStatus, setChangePasswordStatus] = useState({ type: '', message: '' });
   const [changePasswordLoading, setChangePasswordLoading] = useState(false);
 
-  const user = JSON.parse(localStorage.getItem('user') || '{}');
+  const user = JSON.parse(sessionStorage.getItem('user') || '{}');
+
+  const lockVault = () => {
+    setIsLocked(true);
+    setVaultPassword('');
+    setShowPwd({});
+    setAccounts(prev => prev.map(acc => ({ ...acc, password: null })));
+  };
+
+  const revealAccountPassword = async (id, passwordOverride = vaultPassword) => {
+    if (isLocalDevSession) {
+      const localAccount = readLocalAccounts().find(acc => acc.id === id);
+      return localAccount?.password || '';
+    }
+
+    const res = await axios.post(
+      `${API_URL}/api/accounts/${id}/reveal`,
+      { currentPassword: passwordOverride },
+      { headers: { Authorization: `Bearer ${token}` } }
+    );
+
+    const revealedPassword = res.data.password || '';
+    setAccounts(prev => prev.map(acc => acc.id === id ? { ...acc, password: revealedPassword } : acc));
+    return revealedPassword;
+  };
+
+  const openEditModal = (acc, password) => {
+    setForm({ ...acc, password: password || acc.password || '', tags: acc.tags || [] });
+    setEditingId(acc.id);
+    setOpenModal(true);
+  };
 
   useEffect(() => {
     document.documentElement.classList.toggle('dark', dark);
@@ -96,7 +127,7 @@ export default function Dashboard({ token, onLogout }) {
     let timer;
     const resetTimer = () => {
       clearTimeout(timer);
-      timer = setTimeout(() => setIsLocked(true), 10 * 60 * 1000); // 10 mins
+      timer = setTimeout(lockVault, 10 * 60 * 1000); // 10 mins
     };
     if (!isLocked) {
       window.addEventListener('mousemove', resetTimer);
@@ -125,7 +156,9 @@ export default function Dashboard({ token, onLogout }) {
   };
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     fetchAccounts();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Handlers
@@ -136,53 +169,94 @@ export default function Dashboard({ token, onLogout }) {
     return false;
   };
 
-  const handleTogglePwd = (id) => {
+  const handleTogglePwd = async (id) => {
     if (!checkUnlock({ type: 'view', id })) return;
-    setShowPwd(prev => ({ ...prev, [id]: !prev[id] }));
+    if (showPwd[id]) {
+      setShowPwd(prev => ({ ...prev, [id]: false }));
+      return;
+    }
+
+    try {
+      await revealAccountPassword(id);
+      setShowPwd(prev => ({ ...prev, [id]: true }));
+    } catch {
+      setUnlockError('KhÃ´ng thá»ƒ má»Ÿ máº­t kháº©u. Vui lÃ²ng khÃ³a vÃ  má»Ÿ láº¡i vault.');
+      lockVault();
+      setShowUnlockModal(true);
+    }
   };
 
-  const handleCopy = (text, id) => {
-    if (!checkUnlock({ type: 'copy', id, text })) return;
-    navigator.clipboard.writeText(text);
-    setCopied(id);
-    setTimeout(() => setCopied(null), 1500);
+  const handleCopy = async (_text, id) => {
+    if (!checkUnlock({ type: 'copy', id })) return;
+    try {
+      const current = accounts.find(acc => acc.id === id);
+      const passwordToCopy = current?.password || await revealAccountPassword(id);
+      await navigator.clipboard.writeText(passwordToCopy);
+      setCopied(id);
+      setTimeout(() => setCopied(null), 1500);
+    } catch {
+      setUnlockError('KhÃ´ng thá»ƒ sao chÃ©p máº­t kháº©u. Vui lÃ²ng khÃ³a vÃ  má»Ÿ láº¡i vault.');
+      lockVault();
+      setShowUnlockModal(true);
+    }
   };
 
   const handleUnlock = async (e) => {
     e.preventDefault();
     setUnlockError('');
     try {
+      const enteredPassword = unlockPassword;
       if (isLocalDevSession) {
-        if (unlockPassword !== LOCAL_TEST_PASSWORD) throw new Error('Invalid local password');
+        if (enteredPassword !== LOCAL_TEST_PASSWORD) throw new Error('Invalid local password');
         setIsLocked(false);
+        setVaultPassword(enteredPassword);
         setShowUnlockModal(false);
         setUnlockPassword('');
         if (pendingAction) {
-          if (pendingAction.type === 'view') setShowPwd(prev => ({ ...prev, [pendingAction.id]: !prev[pendingAction.id] }));
+          if (pendingAction.type === 'view') {
+            const revealedPassword = await revealAccountPassword(pendingAction.id, enteredPassword);
+            setAccounts(prev => prev.map(acc => acc.id === pendingAction.id ? { ...acc, password: revealedPassword } : acc));
+            setShowPwd(prev => ({ ...prev, [pendingAction.id]: true }));
+          }
           else if (pendingAction.type === 'copy') {
-            navigator.clipboard.writeText(pendingAction.text);
+            const localAccount = readLocalAccounts().find(acc => acc.id === pendingAction.id);
+            navigator.clipboard.writeText(localAccount?.password || '');
             setCopied(pendingAction.id);
             setTimeout(() => setCopied(null), 1500);
+          } else if (pendingAction.type === 'edit') {
+            const localAccount = readLocalAccounts().find(acc => acc.id === pendingAction.id);
+            if (localAccount) openEditModal(localAccount, localAccount.password);
           }
           setPendingAction(null);
         }
         return;
       }
 
-      await axios.post(`${API_URL}/api/auth/login`, { email: user.email, password: unlockPassword });
+      await axios.post(`${API_URL}/api/auth/login`, { email: user.email, password: enteredPassword });
       setIsLocked(false);
+      setVaultPassword(enteredPassword);
       setShowUnlockModal(false);
       setUnlockPassword('');
       if (pendingAction) {
-        if (pendingAction.type === 'view') setShowPwd(prev => ({ ...prev, [pendingAction.id]: !prev[pendingAction.id] }));
+        if (pendingAction.type === 'view') {
+          await revealAccountPassword(pendingAction.id, enteredPassword);
+          setShowPwd(prev => ({ ...prev, [pendingAction.id]: true }));
+        }
         else if (pendingAction.type === 'copy') {
-          navigator.clipboard.writeText(pendingAction.text);
+          const passwordToCopy = await revealAccountPassword(pendingAction.id, enteredPassword);
+          await navigator.clipboard.writeText(passwordToCopy);
           setCopied(pendingAction.id);
           setTimeout(() => setCopied(null), 1500);
+        } else if (pendingAction.type === 'edit') {
+          const accountToEdit = accounts.find(acc => acc.id === pendingAction.id);
+          if (accountToEdit) {
+            const revealedPassword = await revealAccountPassword(pendingAction.id, enteredPassword);
+            openEditModal(accountToEdit, revealedPassword);
+          }
         }
         setPendingAction(null);
       }
-    } catch (err) { setUnlockError('Mật khẩu không chính xác'); }
+    } catch { setUnlockError('Mật khẩu không chính xác'); }
   };
 
   const handlePin = async (id, currentPin) => {
@@ -218,10 +292,17 @@ export default function Dashboard({ token, onLogout }) {
     setOpenModal(true);
   };
 
-  const handleEdit = (acc) => {
-    setForm({ ...acc, tags: acc.tags || [] });
-    setEditingId(acc.id);
-    setOpenModal(true);
+  const handleEdit = async (acc) => {
+    if (!checkUnlock({ type: 'edit', id: acc.id })) return;
+
+    try {
+      const revealedPassword = acc.password || await revealAccountPassword(acc.id);
+      openEditModal(acc, revealedPassword);
+    } catch {
+      setUnlockError('KhÃ´ng thá»ƒ má»Ÿ thÃ´ng tin sá»­a. Vui lÃ²ng khÃ³a vÃ  má»Ÿ láº¡i vault.');
+      lockVault();
+      setShowUnlockModal(true);
+    }
   };
 
   const handleSave = async (e, formOverride) => {
@@ -271,7 +352,7 @@ export default function Dashboard({ token, onLogout }) {
         }
         setChangePasswordForm({ currentPassword: '', newPassword: '', confirmPassword: '' });
         setChangePasswordStatus({ type: 'success', message: 'Local test: khong doi mat khau that.' });
-        setIsLocked(true);
+        lockVault();
         return;
       }
 
@@ -282,7 +363,7 @@ export default function Dashboard({ token, onLogout }) {
 
       setChangePasswordForm({ currentPassword: '', newPassword: '', confirmPassword: '' });
       setChangePasswordStatus({ type: 'success', message: 'Đã đổi mật khẩu thành công.' });
-      setIsLocked(true);
+      lockVault();
     } catch (err) {
       setChangePasswordStatus({ type: 'error', message: err.response?.data?.error || 'Không thể đổi mật khẩu.' });
     } finally {
@@ -402,7 +483,7 @@ export default function Dashboard({ token, onLogout }) {
                     <p className="text-[13px] text-warm-gray-400">Khóa kho dữ liệu ngay lập tức.</p>
                   </div>
                   <button 
-                    onClick={() => isLocked ? setShowUnlockModal(true) : setIsLocked(true)}
+                    onClick={() => isLocked ? setShowUnlockModal(true) : lockVault()}
                     className={`px-4 py-1.5 rounded-lg text-[13px] font-bold transition-all border ${
                       isLocked 
                         ? 'bg-red-50 dark:bg-red-500/10 text-red-500 border-red-200 dark:border-red-500/20' 
@@ -513,7 +594,7 @@ export default function Dashboard({ token, onLogout }) {
         activeTab={activeTab} setActiveTab={setActiveTab}
         dark={dark} setDark={setDark}
         isLocked={isLocked} onLogout={onLogout}
-        onLock={() => isLocked ? setShowUnlockModal(true) : setIsLocked(true)}
+        onLock={() => isLocked ? setShowUnlockModal(true) : lockVault()}
         userEmail={user.email}
         isCollapsed={isCollapsed} setIsCollapsed={setIsCollapsed}
       />
@@ -546,8 +627,8 @@ export default function Dashboard({ token, onLogout }) {
         {showImportExport && (
           <ImportExportModal
             onClose={() => setShowImportExport(false)}
-            onExport={(format) => { /* Reuse export logic from before */ }}
-            onImport={async (e) => { /* Reuse import logic */ }}
+            onExport={() => { /* Reuse export logic from before */ }}
+            onImport={async () => { /* Reuse import logic */ }}
           />
         )}
       </AnimatePresence>

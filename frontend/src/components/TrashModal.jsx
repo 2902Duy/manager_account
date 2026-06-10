@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { Trash2, RefreshCw, X, AlertCircle } from 'lucide-react';
-import { motion } from 'framer-motion';
+import { motion as Motion } from 'framer-motion';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
 
@@ -13,6 +13,7 @@ export default function TrashModal({
 }) {
   const [trashed, setTrashed] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [now] = useState(() => Date.now());
 
   const fetchTrash = async () => {
     try {
@@ -22,7 +23,9 @@ export default function TrashModal({
   };
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     fetchTrash();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [token]);
 
   const handleRestore = async (id) => {
@@ -30,7 +33,7 @@ export default function TrashModal({
       await axios.post(`${API_URL}/api/accounts/${id}/restore`, {}, { headers: { Authorization: `Bearer ${token}` } });
       fetchTrash();
       if (onParentRestore) onParentRestore();
-    } catch (e) { alert('Lỗi khôi phục'); }
+    } catch { alert('Lỗi khôi phục'); }
   };
 
   const handlePermanentDelete = async (id) => {
@@ -38,10 +41,10 @@ export default function TrashModal({
     try {
       await axios.delete(`${API_URL}/api/accounts/${id}/permanent`, { headers: { Authorization: `Bearer ${token}` } });
       fetchTrash();
-    } catch (e) { alert('Lỗi xóa vĩnh viễn'); }
+    } catch { alert('Lỗi xóa vĩnh viễn'); }
   };
 
-  const timeAgo = (d) => { const s = Math.floor((Date.now() - new Date(d)) / 1000); if (s < 60) return 'Vừa xong'; if (s < 3600) return `${Math.floor(s/60)} phút trước`; if (s < 86400) return `${Math.floor(s/3600)} giờ trước`; return `${Math.floor(s/86400)} ngày trước`; };
+  const timeAgo = (d) => { const s = Math.floor((now - new Date(d)) / 1000); if (s < 60) return 'Vừa xong'; if (s < 3600) return `${Math.floor(s/60)} phút trước`; if (s < 86400) return `${Math.floor(s/3600)} giờ trước`; return `${Math.floor(s/86400)} ngày trước`; };
 
   const content = (
     <div className={inline ? '' : 'max-h-[70vh] overflow-y-auto'}>
@@ -95,10 +98,10 @@ export default function TrashModal({
   if (inline) return content;
 
   return (
-    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-      <motion.div initial={{ scale: 0.95 }} animate={{ scale: 1 }} className="bg-white dark:bg-neutral-800 rounded-2xl p-6 w-full max-w-lg shadow-2xl">
+    <Motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+      <Motion.div initial={{ scale: 0.95 }} animate={{ scale: 1 }} className="bg-white dark:bg-neutral-800 rounded-2xl p-6 w-full max-w-lg shadow-2xl">
         {content}
-      </motion.div>
-    </motion.div>
+      </Motion.div>
+    </Motion.div>
   );
 }

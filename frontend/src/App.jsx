@@ -7,17 +7,17 @@ import ResetPassword from './ResetPassword';
 import Dashboard from './Dashboard';
 
 function App() {
-  const [token, setToken] = useState(localStorage.getItem('token') || null);
+  const [token, setToken] = useState(sessionStorage.getItem('token') || null);
 
   const handleLogin = (t, u) => {
-    localStorage.setItem('token', t);
-    localStorage.setItem('user', JSON.stringify(u));
+    sessionStorage.setItem('token', t);
+    sessionStorage.setItem('user', JSON.stringify(u));
     setToken(t);
   };
 
   const handleLogout = () => {
-    localStorage.removeItem('token');
-    localStorage.removeItem('user');
+    sessionStorage.removeItem('token');
+    sessionStorage.removeItem('user');
     setToken(null);
   };
 
