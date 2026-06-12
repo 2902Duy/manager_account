@@ -25,6 +25,8 @@ export default function AddEditModal({
   accounts = []
 }) {
   const [tagInput, setTagInput] = useState('');
+  const [isTypeFocused, setIsTypeFocused] = useState(false);
+  const [isTagFocused, setIsTagFocused] = useState(false);
   const strength = getStrength(form.password || '');
 
   const accountTypeSuggestions = useMemo(() => {
@@ -73,6 +75,18 @@ export default function AddEditModal({
     setForm({ ...form, tags: (form.tags || []).filter(t => t !== tagToRemove) });
   };
 
+  const selectSuggestedTag = (tag) => {
+    const pendingTags = tagInput
+      .split(',')
+      .slice(0, -1)
+      .map(item => item.trim())
+      .filter(Boolean);
+    const nextTags = Array.from(new Set([...(form.tags || []), ...pendingTags, tag]));
+    setForm({ ...form, tags: nextTags });
+    setTagInput('');
+    setIsTagFocused(false);
+  };
+
   const handleSubmit = (e) => {
     const tags = tagInput.trim() ? buildTags(form.tags, tagInput) : (form.tags || []);
     setTagInput('');
@@ -105,21 +119,37 @@ export default function AddEditModal({
           <div className="flex gap-3">
             <div className="flex-1">
               <label className="block text-[13px] font-medium text-warm-gray-500 dark:text-neutral-400 mb-[4px]">Loại tài khoản</label>
+              <div className="relative">
               <input
                 required
                 autoComplete="off"
                 name="stored-category"
-                list="account-type-suggestions"
                 placeholder="VD: Game, Công việc"
                 className="w-full bg-notion-white dark:bg-neutral-800 border border-whisper dark:border-neutral-700 rounded-[6px] px-3 py-[10px] sm:py-[8px] text-[15px] text-notion-black dark:text-neutral-100 focus:outline-none focus:ring-[2px] focus:ring-notion-blue/50 focus:border-notion-blue transition"
                 value={form.account_type}
+                onFocus={() => setIsTypeFocused(true)}
+                onBlur={() => setTimeout(() => setIsTypeFocused(false), 120)}
                 onChange={e => setForm({ ...form, account_type: e.target.value })}
               />
-              <datalist id="account-type-suggestions">
-                {accountTypeSuggestions.map(type => (
-                  <option key={type} value={type} />
-                ))}
-              </datalist>
+              {isTypeFocused && accountTypeSuggestions.length > 0 && (
+                <div className="absolute left-0 right-0 top-full z-30 mt-1 overflow-hidden rounded-[8px] border border-whisper dark:border-neutral-700 bg-notion-white dark:bg-neutral-800 shadow-deep">
+                  {accountTypeSuggestions.map(type => (
+                    <button
+                      key={type}
+                      type="button"
+                      onMouseDown={(e) => e.preventDefault()}
+                      onClick={() => {
+                        setForm({ ...form, account_type: type });
+                        setIsTypeFocused(false);
+                      }}
+                      className="block w-full px-3 py-2 text-left text-[14px] font-medium text-notion-black dark:text-neutral-100 hover:bg-warm-white dark:hover:bg-neutral-700"
+                    >
+                      {type}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
             </div>
           </div>
 
@@ -138,18 +168,30 @@ export default function AddEditModal({
               <input
                 autoComplete="off"
                 name="stored-tags"
-                list="tag-suggestions"
                 placeholder="Nhập tag, nhấn Enter hoặc dùng dấu phẩy..."
                 className="w-full bg-notion-white dark:bg-neutral-800 border border-whisper dark:border-neutral-700 rounded-[6px] pl-9 pr-3 py-[10px] sm:py-[8px] text-[14px] text-notion-black dark:text-neutral-100 focus:outline-none focus:ring-[2px] focus:ring-notion-blue/50 transition"
                 value={tagInput}
+                onFocus={() => setIsTagFocused(true)}
+                onBlur={() => setTimeout(() => setIsTagFocused(false), 120)}
                 onChange={e => setTagInput(e.target.value)}
                 onKeyDown={addTag}
               />
-              <datalist id="tag-suggestions">
-                {tagSuggestions.map(tag => (
-                  <option key={tag} value={tag} />
-                ))}
-              </datalist>
+              {isTagFocused && tagSuggestions.length > 0 && (
+                <div className="absolute left-0 right-0 top-full z-30 mt-1 overflow-hidden rounded-[8px] border border-whisper dark:border-neutral-700 bg-notion-white dark:bg-neutral-800 shadow-deep">
+                  {tagSuggestions.map(tag => (
+                    <button
+                      key={tag}
+                      type="button"
+                      onMouseDown={(e) => e.preventDefault()}
+                      onClick={() => selectSuggestedTag(tag)}
+                      className="flex w-full items-center gap-2 px-3 py-2 text-left text-[14px] font-medium text-notion-black dark:text-neutral-100 hover:bg-warm-white dark:hover:bg-neutral-700"
+                    >
+                      <TagIcon size={13} className="text-warm-gray-300" />
+                      <span className="truncate">{tag}</span>
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
 
