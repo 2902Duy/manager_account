@@ -1,18 +1,47 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { X, Tag as TagIcon } from 'lucide-react';
 import { motion as Motion } from 'framer-motion';
 import PasswordGenerator, { getStrength } from '../PasswordGenerator';
 import PasswordInput from './PasswordInput';
+
+const uniqueValues = (values) => {
+  const seen = new Set();
+  return values.reduce((result, value) => {
+    const trimmed = String(value || '').trim();
+    const key = trimmed.toLowerCase();
+    if (!trimmed || seen.has(key)) return result;
+    seen.add(key);
+    result.push(trimmed);
+    return result;
+  }, []);
+};
 
 export default function AddEditModal({
   editingId,
   form,
   setForm,
   onSave,
-  onClose
+  onClose,
+  accounts = []
 }) {
   const [tagInput, setTagInput] = useState('');
   const strength = getStrength(form.password || '');
+
+  const accountTypeSuggestions = useMemo(() => {
+    const query = (form.account_type || '').trim().toLowerCase();
+    return uniqueValues(accounts.slice().reverse().map(acc => acc.account_type))
+      .filter(type => type.toLowerCase().includes(query) && type !== form.account_type)
+      .slice(0, 8);
+  }, [accounts, form.account_type]);
+
+  const tagQuery = tagInput.split(',').pop().trim().toLowerCase();
+  const tagSuggestions = useMemo(() => {
+    const selectedTags = new Set((form.tags || []).map(tag => tag.toLowerCase()));
+    return uniqueValues(accounts.slice().reverse().flatMap(acc => acc.tags || []))
+      .filter(tag => !selectedTags.has(tag.toLowerCase()))
+      .filter(tag => !tagQuery || tag.toLowerCase().includes(tagQuery))
+      .slice(0, 8);
+  }, [accounts, form.tags, tagQuery]);
 
   const buildTags = (rawTags, rawInput) => {
     const existing = rawTags || [];
@@ -80,11 +109,17 @@ export default function AddEditModal({
                 required
                 autoComplete="off"
                 name="stored-category"
+                list="account-type-suggestions"
                 placeholder="VD: Game, Công việc"
                 className="w-full bg-notion-white dark:bg-neutral-800 border border-whisper dark:border-neutral-700 rounded-[6px] px-3 py-[10px] sm:py-[8px] text-[15px] text-notion-black dark:text-neutral-100 focus:outline-none focus:ring-[2px] focus:ring-notion-blue/50 focus:border-notion-blue transition"
                 value={form.account_type}
                 onChange={e => setForm({ ...form, account_type: e.target.value })}
               />
+              <datalist id="account-type-suggestions">
+                {accountTypeSuggestions.map(type => (
+                  <option key={type} value={type} />
+                ))}
+              </datalist>
             </div>
           </div>
 
@@ -103,12 +138,18 @@ export default function AddEditModal({
               <input
                 autoComplete="off"
                 name="stored-tags"
+                list="tag-suggestions"
                 placeholder="Nhập tag, nhấn Enter hoặc dùng dấu phẩy..."
                 className="w-full bg-notion-white dark:bg-neutral-800 border border-whisper dark:border-neutral-700 rounded-[6px] pl-9 pr-3 py-[10px] sm:py-[8px] text-[14px] text-notion-black dark:text-neutral-100 focus:outline-none focus:ring-[2px] focus:ring-notion-blue/50 transition"
                 value={tagInput}
                 onChange={e => setTagInput(e.target.value)}
                 onKeyDown={addTag}
               />
+              <datalist id="tag-suggestions">
+                {tagSuggestions.map(tag => (
+                  <option key={tag} value={tag} />
+                ))}
+              </datalist>
             </div>
           </div>
 

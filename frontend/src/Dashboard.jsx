@@ -68,7 +68,7 @@ export default function Dashboard({ token, onLogout }) {
   const [editingId, setEditingId] = useState(null);
   const [search, setSearch] = useState('');
   const [copied, setCopied] = useState(null);
-  const [form, setForm] = useState({ account_type: 'Game', account: '', password: '', information: '', gmail_link: '', tags: [] });
+  const [form, setForm] = useState({ account_type: '', account: '', password: '', information: '', gmail_link: '', tags: [] });
 
   // Navigation & UI State
   const [activeTab, setActiveTab] = useState('vault');
@@ -287,7 +287,7 @@ export default function Dashboard({ token, onLogout }) {
   };
 
   const handleOpenAdd = () => {
-    setForm({ account_type: 'Game', account: '', password: '', information: '', gmail_link: '', tags: [] });
+    setForm({ account_type: '', account: '', password: '', information: '', gmail_link: '', tags: [] });
     setEditingId(null);
     setOpenModal(true);
   };
@@ -615,6 +615,7 @@ export default function Dashboard({ token, onLogout }) {
           <AddEditModal
             editingId={editingId} form={form} setForm={setForm}
             onSave={handleSave} onClose={() => setOpenModal(false)}
+            accounts={accounts}
           />
         )}
         {showUnlockModal && (
