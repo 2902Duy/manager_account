@@ -22,7 +22,9 @@ export default function AddEditModal({
   setForm,
   onSave,
   onClose,
-  accounts = []
+  accounts = [],
+  saveError = '',
+  isSaving = false
 }) {
   const [tagInput, setTagInput] = useState('');
   const [isTypeFocused, setIsTypeFocused] = useState(false);
@@ -112,7 +114,7 @@ export default function AddEditModal({
           <button onClick={onClose} className="w-8 h-8 flex items-center justify-center bg-warm-white dark:bg-neutral-700 rounded-full text-warm-gray-500 dark:text-neutral-300"><X size={16} /></button>
         </div>
 
-        <form onSubmit={handleSubmit} autoComplete="off" className="flex flex-col gap-[14px]">
+        <form onSubmit={handleSubmit} autoComplete="off" aria-busy={isSaving} className="flex flex-col gap-[14px]">
           <input type="text" name="username" autoComplete="username" className="pointer-events-none absolute h-0 w-0 opacity-0" tabIndex={-1} aria-hidden="true" />
           <input type="password" name="password" autoComplete="current-password" className="pointer-events-none absolute h-0 w-0 opacity-0" tabIndex={-1} aria-hidden="true" />
 
@@ -260,9 +262,16 @@ export default function AddEditModal({
             />
           </div>
 
-          <div className="flex gap-3 mt-4 pt-4 sm:pt-6 pb-2 sm:pb-0 border-t border-whisper dark:border-neutral-700 justify-end">
+          <div className="flex flex-col gap-3 mt-4 pt-4 sm:pt-6 pb-2 sm:pb-0 border-t border-whisper dark:border-neutral-700">
+            {saveError && (
+              <p className="text-[13px] font-medium text-red-500 dark:text-red-400">
+                {saveError}
+              </p>
+            )}
+            <div className="flex gap-3 justify-end">
             <button type="button" onClick={onClose} className="hidden sm:block px-4 py-[8px] text-[15px] font-medium hover:bg-warm-white dark:hover:bg-neutral-700 text-notion-black dark:text-neutral-200 rounded-[6px] border border-whisper dark:border-neutral-700 transition">Hủy</button>
-            <button type="submit" className="w-full sm:w-auto px-5 py-[12px] sm:py-[8px] text-[15px] font-semibold bg-notion-blue hover:bg-notion-blue-hover text-white rounded-[8px] sm:rounded-[6px] transition active:scale-[0.98]">{editingId ? 'Cập nhật' : 'Lưu tài khoản'}</button>
+            <button type="submit" disabled={isSaving} className="w-full sm:w-auto px-5 py-[12px] sm:py-[8px] text-[15px] font-semibold bg-notion-blue hover:bg-notion-blue-hover disabled:opacity-60 disabled:cursor-not-allowed text-white rounded-[8px] sm:rounded-[6px] transition active:scale-[0.98]">{isSaving ? 'Đang lưu...' : editingId ? 'Cập nhật' : 'Lưu tài khoản'}</button>
+          </div>
           </div>
         </form>
       </Motion.div>

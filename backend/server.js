@@ -99,6 +99,19 @@ const accountUpdateSchema = accountSchema.extend({
   password: z.string().optional(),
 });
 
+const getZodMessage = (err) => err.issues?.[0]?.message || err.errors?.[0]?.message || 'Du lieu khong hop le';
+
+const getAccountWriteErrorMessage = (error, action) => {
+  const rawMessage = [error?.message, error?.details, error?.hint].filter(Boolean).join(' ');
+  const lowerMessage = rawMessage.toLowerCase();
+
+  if (lowerMessage.includes('tags') || lowerMessage.includes('strength_score')) {
+    return 'Database chua co cot tags/strength_score. Hay chay backend/migration_v2.sql trong Supabase SQL Editor.';
+  }
+
+  return `Loi khi ${action}: ${error?.message || 'Khong the ghi du lieu'}`;
+};
+
 // Helper tính điểm sức khỏe mật khẩu (bản backend)
 const calculateStrength = (password) => {
   if (!password) return 0;
@@ -448,14 +461,18 @@ app.post('/api/accounts', authMiddleware, async (req, res) => {
       .select()
       .single();
 
-    if (error) { console.error(error); return res.status(500).json({ error: 'Lỗi khi tạo tài khoản' }); }
+    if (error) {
+      console.error('Create account error:', error);
+      return res.status(500).json({ error: getAccountWriteErrorMessage(error, 'tao tai khoan') });
+    }
     logActivity(req.user.id, data.id, 'create', { account_name: account });
     
     // Trả về dữ liệu đã giải mã để frontend cập nhật UI ngay
     res.status(201).json(maskAccount(data));
   } catch (err) {
-    if (err instanceof z.ZodError) return res.status(400).json({ error: err.errors[0].message });
-    res.status(500).json({ error: 'Lỗi server' });
+    if (err instanceof z.ZodError) return res.status(400).json({ error: getZodMessage(err) });
+    console.error('Create account server error:', err);
+    res.status(500).json({ error: 'Loi server khi tao tai khoan' });
   }
 });
 
@@ -520,7 +537,10 @@ app.put('/api/accounts/:id', authMiddleware, async (req, res) => {
       .select()
       .single();
 
-    if (error) { console.error(error); return res.status(500).json({ error: 'Lỗi cập nhật' }); }
+    if (error) {
+      console.error('Update account error:', error);
+      return res.status(500).json({ error: getAccountWriteErrorMessage(error, 'cap nhat tai khoan') });
+    }
 
     // 3. So sánh các trường để tìm thay đổi
     const changes = {};
@@ -559,8 +579,9 @@ app.put('/api/accounts/:id', authMiddleware, async (req, res) => {
 
     res.json(maskAccount(newData));
   } catch (err) {
-    if (err instanceof z.ZodError) return res.status(400).json({ error: err.errors[0].message });
-    res.status(500).json({ error: 'Lỗi server' });
+    if (err instanceof z.ZodError) return res.status(400).json({ error: getZodMessage(err) });
+    console.error('Update account server error:', err);
+    res.status(500).json({ error: 'Loi server khi cap nhat tai khoan' });
   }
 });
 

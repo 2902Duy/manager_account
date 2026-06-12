@@ -60,6 +60,14 @@ const writeLocalAccounts = (nextAccounts) => {
   localStorage.setItem(LOCAL_ACCOUNTS_KEY, JSON.stringify(nextAccounts));
 };
 
+const getApiErrorMessage = (err) => {
+  if (err.response?.data?.error) return err.response.data.error;
+  if (err.response?.data?.message) return err.response.data.message;
+  if (err.response?.status) return `Lỗi ${err.response.status}: Không thể lưu dữ liệu`;
+  if (err.request) return 'Không kết nối được máy chủ API. Kiểm tra VITE_API_URL hoặc backend đang chạy.';
+  return 'Lỗi lưu dữ liệu';
+};
+
 export default function Dashboard({ token, onLogout }) {
   const isLocalDevSession = import.meta.env.DEV && token === LOCAL_DEV_TOKEN;
   const [accounts, setAccounts] = useState([]);
@@ -69,6 +77,8 @@ export default function Dashboard({ token, onLogout }) {
   const [search, setSearch] = useState('');
   const [copied, setCopied] = useState(null);
   const [form, setForm] = useState({ account_type: '', account: '', password: '', information: '', gmail_link: '', tags: [] });
+  const [saveError, setSaveError] = useState('');
+  const [isSaving, setIsSaving] = useState(false);
 
   // Navigation & UI State
   const [activeTab, setActiveTab] = useState('vault');
@@ -288,6 +298,7 @@ export default function Dashboard({ token, onLogout }) {
 
   const handleOpenAdd = () => {
     setForm({ account_type: '', account: '', password: '', information: '', gmail_link: '', tags: [] });
+    setSaveError('');
     setEditingId(null);
     setOpenModal(true);
   };
@@ -308,6 +319,7 @@ export default function Dashboard({ token, onLogout }) {
   const handleSave = async (e, formOverride) => {
     e.preventDefault();
     const payload = formOverride || form;
+    setSaveError('');
     if (isLocalDevSession) {
       const next = editingId
         ? accounts.map(acc => acc.id === editingId ? { ...acc, ...payload, id: editingId } : acc)
@@ -318,12 +330,17 @@ export default function Dashboard({ token, onLogout }) {
       return;
     }
 
+    setIsSaving(true);
     try {
       if (editingId) await axios.put(`${API_URL}/api/accounts/${editingId}`, payload, { headers: { Authorization: `Bearer ${token}` } });
       else await axios.post(`${API_URL}/api/accounts`, payload, { headers: { Authorization: `Bearer ${token}` } });
       setOpenModal(false);
       fetchAccounts();
-    } catch (err) { alert(err.response?.data?.error || 'Lỗi lưu dữ liệu'); }
+    } catch (err) {
+      setSaveError(getApiErrorMessage(err));
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const handleChangePassword = async (e) => {
@@ -614,8 +631,10 @@ export default function Dashboard({ token, onLogout }) {
         {openModal && (
           <AddEditModal
             editingId={editingId} form={form} setForm={setForm}
-            onSave={handleSave} onClose={() => setOpenModal(false)}
+            onSave={handleSave} onClose={() => { setSaveError(''); setOpenModal(false); }}
             accounts={accounts}
+            saveError={saveError}
+            isSaving={isSaving}
           />
         )}
         {showUnlockModal && (
