@@ -8,6 +8,7 @@ Password/account manager with a React frontend, Express backend, and Supabase Po
 - `backend/`: Express API server.
 - `backend/migration.sql`: migration for pinned accounts, trash, and activity logs.
 - `backend/migration_v2.sql`: migration for tags and password strength.
+- `backend/migration_v3_maintenance.sql`: cleanup function and optimized indexes.
 
 ## Supabase Tables
 
