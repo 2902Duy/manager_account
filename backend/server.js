@@ -405,21 +405,46 @@ const verifyUserPassword = async (email, password) => {
 
 // Read All — chỉ trả về accounts chưa xóa của user hiện tại
 app.get('/api/accounts', authMiddleware, async (req, res) => {
-  // Tiện tay dọn dẹp thùng rác cũ
   cleanupTrash(req.user.id);
 
-  const { data, error } = await supabase
+  const { search, tag, type } = req.query;
+  const limit = Math.min(Math.max(parseInt(req.query.limit, 10) || 500, 1), 500);
+
+  let query = supabase
     .from('stored_accounts')
     .select('*')
     .eq('user_id', req.user.id)
     .eq('is_deleted', false)
     .order('is_pinned', { ascending: false })
     .order('id', { ascending: false })
-    .limit(500);
+    .limit(limit);
 
-  if (error) { console.error(error); return res.status(500).json({ error: 'Lỗi khi tải dữ liệu' }); }
-  
-  // Giải mã mật khẩu trước khi trả về
+  if (type) {
+    query = query.eq('account_type', type);
+  }
+
+  if (tag) {
+    query = query.contains('tags', [tag]);
+  }
+
+  const trimmedSearch = (search || '').trim();
+  if (trimmedSearch) {
+    if (trimmedSearch.startsWith('#')) {
+      const searchTag = trimmedSearch.slice(1).trim();
+      if (searchTag) query = query.contains('tags', [searchTag]);
+    } else {
+      const escapedSearch = trimmedSearch.replace(/[%_,]/g, '\\$&');
+      query = query.or(`account.ilike.%${escapedSearch}%,account_type.ilike.%${escapedSearch}%,information.ilike.%${escapedSearch}%,gmail_link.ilike.%${escapedSearch}%`);
+    }
+  }
+
+  const { data, error } = await query;
+
+  if (error) {
+    console.error(error);
+    return res.status(500).json({ error: 'Loi khi tai du lieu' });
+  }
+
   res.json(data.map(maskAccount));
 });
 

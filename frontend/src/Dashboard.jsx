@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import {
-  Plus, Search, Star, Shield, Moon, Sun, Settings, Inbox
+  Plus, Search, Star, Shield
 } from 'lucide-react';
 import { AnimatePresence } from 'framer-motion';
 
@@ -14,7 +14,7 @@ import TrashModal from './components/TrashModal';
 import ActivityLogModal from './components/ActivityLogModal';
 import ImportExportModal from './components/ImportExportModal';
 import UnlockModal from './components/UnlockModal';
-import PasswordInput from './components/PasswordInput';
+import SettingsPanel from './components/SettingsPanel';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
 const LOCAL_DEV_TOKEN = 'local-dev-token';
@@ -264,7 +264,13 @@ export default function Dashboard({ token, onLogout }) {
     }
 
     try {
-      const res = await axios.get(`${API_URL}/api/accounts`, { headers: { Authorization: `Bearer ${token}` } });
+      const res = await axios.get(`${API_URL}/api/accounts`, {
+        headers: { Authorization: `Bearer ${token}` },
+        params: {
+          search: search.trim() || undefined,
+          limit: 500,
+        },
+      });
       setAccounts(res.data);
     } catch (e) {
       if (e.response?.status === 401) onLogout();
@@ -276,6 +282,15 @@ export default function Dashboard({ token, onLogout }) {
     fetchAccounts();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  useEffect(() => {
+    if (isLocalDevSession) return;
+    const timer = setTimeout(() => {
+      fetchAccounts();
+    }, 250);
+    return () => clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [search]);
 
   // Handlers
   const checkUnlock = (action) => {
@@ -568,8 +583,9 @@ export default function Dashboard({ token, onLogout }) {
   // Filter Logic
   const filtered = accounts.filter(acc => {
     const searchLower = search.toLowerCase();
+    const tagSearch = searchLower.startsWith('#') ? searchLower.slice(1) : searchLower;
     const matchBasic = [acc.account_type, acc.account].join(' ').toLowerCase().includes(searchLower);
-    const matchTags = (acc.tags || []).some(tag => tag.toLowerCase().includes(searchLower));
+    const matchTags = (acc.tags || []).some(tag => tag.toLowerCase().includes(tagSearch));
     return matchBasic || matchTags;
   });
   const pinned = filtered.filter(a => a.is_pinned);
@@ -644,155 +660,21 @@ export default function Dashboard({ token, onLogout }) {
         </div>
       );
       case 'settings': return (
-        <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 max-w-3xl">
-          <h1 className="text-[32px] font-bold mb-2">Cài đặt</h1>
-          <p className="text-warm-gray-500 mb-8">Quản lý bảo mật, giao diện và dữ liệu cá nhân của bạn.</p>
-
-          <div className="grid gap-6">
-            {/* Giao diện */}
-            <div className="bg-white dark:bg-neutral-800 p-6 rounded-2xl border border-whisper dark:border-neutral-700 shadow-sm">
-              <h3 className="text-[16px] font-bold mb-4 flex items-center gap-2 text-notion-black dark:text-white">
-                <Moon size={18} className="text-notion-blue" /> Chế độ hiển thị
-              </h3>
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="font-semibold text-[14px]">Giao diện tối (Dark Mode)</p>
-                  <p className="text-[13px] text-warm-gray-400">Tự động điều chỉnh màu sắc phù hợp với môi trường.</p>
-                </div>
-                <button onClick={() => setDark(!dark)} className={`w-12 h-6 rounded-full transition-all relative ${dark ? 'bg-notion-blue' : 'bg-warm-white border border-whisper'}`}>
-                  <div className={`absolute top-1 w-4 h-4 rounded-full bg-white shadow-md transition-all ${dark ? 'left-7' : 'left-1'}`} />
-                </button>
-              </div>
-            </div>
-
-            {/* Bảo mật */}
-            <div className="bg-white dark:bg-neutral-800 p-6 rounded-2xl border border-whisper dark:border-neutral-700 shadow-sm">
-              <h3 className="text-[16px] font-bold mb-4 flex items-center gap-2 text-notion-black dark:text-white">
-                <Shield size={18} className="text-emerald-500" /> Bảo mật tài khoản
-              </h3>
-              <div className="space-y-6">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="font-semibold text-[14px]">Trạng thái DLock</p>
-                    <p className="text-[13px] text-warm-gray-400">Khóa kho dữ liệu ngay lập tức.</p>
-                  </div>
-                  <button
-                    onClick={() => isLocked ? setShowUnlockModal(true) : lockVault()}
-                    className={`px-4 py-1.5 rounded-lg text-[13px] font-bold transition-all border ${isLocked
-                        ? 'bg-red-50 dark:bg-red-500/10 text-red-500 border-red-200 dark:border-red-500/20'
-                        : 'bg-emerald-50 dark:bg-emerald-500/10 text-emerald-500 border-emerald-200 dark:border-emerald-500/20'
-                      }`}
-                  >
-                    {isLocked ? 'Đang khóa (Mở ngay)' : 'Đang mở (Khóa ngay)'}
-                  </button>
-                </div>
-
-                <div className="flex items-center justify-between border-t border-whisper pt-4 dark:border-neutral-700">
-                  <div>
-                    <p className="font-semibold text-[14px]">Auto-lock</p>
-                    <p className="text-[13px] text-warm-gray-400">Lock the vault after a period of inactivity.</p>
-                  </div>
-                  <select
-                    value={autoLockMinutes}
-                    onChange={e => setAutoLockMinutes(Number(e.target.value))}
-                    className="rounded-[8px] border border-whisper bg-warm-white px-3 py-2 text-[13px] font-semibold text-notion-black outline-none transition focus:border-notion-blue focus:ring-2 focus:ring-notion-blue/20 dark:border-neutral-700 dark:bg-neutral-900 dark:text-white"
-                  >
-                    <option value={0}>Off</option>
-                    <option value={5}>5 min</option>
-                    <option value={10}>10 min</option>
-                    <option value={15}>15 min</option>
-                    <option value={30}>30 min</option>
-                  </select>
-                </div>
-
-                <form onSubmit={handleChangePassword} className="pt-4 border-t border-whisper dark:border-neutral-700">
-                  <div className="mb-4">
-                    <p className="font-semibold text-[14px]">Thay đổi mật khẩu</p>
-                    <p className="text-[13px] text-warm-gray-400">Nhập mật khẩu hiện tại để xác minh, sau đó đặt mật khẩu mới.</p>
-                  </div>
-
-                  <div className="grid gap-3">
-                    <div>
-                      <label className="block text-[12px] font-medium text-warm-gray-500 dark:text-neutral-400 mb-1.5">Mật khẩu hiện tại</label>
-                      <PasswordInput
-                        required
-                        placeholder="Nhập mật khẩu hiện tại"
-                        className="w-full bg-warm-white dark:bg-neutral-900 border border-whisper dark:border-neutral-700 rounded-[8px] px-3 py-2.5 text-[14px] focus:outline-none focus:ring-2 focus:ring-notion-blue/30 focus:border-notion-blue transition"
-                        value={changePasswordForm.currentPassword}
-                        onChange={e => {
-                          setChangePasswordStatus({ type: '', message: '' });
-                          setChangePasswordForm({ ...changePasswordForm, currentPassword: e.target.value });
-                        }}
-                      />
-                    </div>
-
-                    <div className="grid gap-3 md:grid-cols-2">
-                      <div>
-                        <label className="block text-[12px] font-medium text-warm-gray-500 dark:text-neutral-400 mb-1.5">Mật khẩu mới</label>
-                        <PasswordInput
-                          required
-                          placeholder="Tối thiểu 6 ký tự"
-                          className="w-full bg-warm-white dark:bg-neutral-900 border border-whisper dark:border-neutral-700 rounded-[8px] px-3 py-2.5 text-[14px] focus:outline-none focus:ring-2 focus:ring-notion-blue/30 focus:border-notion-blue transition"
-                          value={changePasswordForm.newPassword}
-                          onChange={e => {
-                            setChangePasswordStatus({ type: '', message: '' });
-                            setChangePasswordForm({ ...changePasswordForm, newPassword: e.target.value });
-                          }}
-                        />
-                      </div>
-
-                      <div>
-                        <label className="block text-[12px] font-medium text-warm-gray-500 dark:text-neutral-400 mb-1.5">Xác nhận mật khẩu mới</label>
-                        <PasswordInput
-                          required
-                          placeholder="Nhập lại mật khẩu mới"
-                          className="w-full bg-warm-white dark:bg-neutral-900 border border-whisper dark:border-neutral-700 rounded-[8px] px-3 py-2.5 text-[14px] focus:outline-none focus:ring-2 focus:ring-notion-blue/30 focus:border-notion-blue transition"
-                          value={changePasswordForm.confirmPassword}
-                          onChange={e => {
-                            setChangePasswordStatus({ type: '', message: '' });
-                            setChangePasswordForm({ ...changePasswordForm, confirmPassword: e.target.value });
-                          }}
-                        />
-                      </div>
-                    </div>
-                  </div>
-
-                  {changePasswordStatus.message && (
-                    <p className={`mt-3 text-[12px] font-medium ${changePasswordStatus.type === 'success' ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-500'}`}>
-                      {changePasswordStatus.message}
-                    </p>
-                  )}
-
-                  <div className="mt-4 flex justify-end">
-                    <button
-                      type="submit"
-                      disabled={changePasswordLoading}
-                      className="px-4 py-2 bg-notion-blue text-white hover:bg-notion-blue-hover disabled:opacity-60 rounded-lg text-[13px] font-bold transition"
-                    >
-                      {changePasswordLoading ? 'Đang đổi...' : 'Đổi mật khẩu'}
-                    </button>
-                  </div>
-                </form>
-              </div>
-            </div>
-
-            {/* Dữ liệu */}
-            <div className="bg-white dark:bg-neutral-800 p-6 rounded-2xl border border-whisper dark:border-neutral-700 shadow-sm">
-              <h3 className="text-[16px] font-bold mb-4 flex items-center gap-2 text-notion-black dark:text-white">
-                <Settings size={18} className="text-warm-gray-400" /> Quản lý dữ liệu
-              </h3>
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="font-semibold text-[14px]">Sao lưu & Phục hồi</p>
-                  <p className="text-[13px] text-warm-gray-400">Tải về hoặc nhập dữ liệu từ file CSV/JSON.</p>
-                </div>
-                <button onClick={() => setShowImportExport(true)} className="px-5 py-2 bg-notion-blue text-white hover:bg-notion-blue-hover rounded-lg text-[13px] font-bold transition shadow-sm">
-                  Quản lý
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
+        <SettingsPanel
+          dark={dark}
+          setDark={setDark}
+          isLocked={isLocked}
+          onToggleVaultLock={() => isLocked ? setShowUnlockModal(true) : lockVault()}
+          autoLockMinutes={autoLockMinutes}
+          setAutoLockMinutes={setAutoLockMinutes}
+          changePasswordForm={changePasswordForm}
+          setChangePasswordForm={setChangePasswordForm}
+          changePasswordStatus={changePasswordStatus}
+          setChangePasswordStatus={setChangePasswordStatus}
+          changePasswordLoading={changePasswordLoading}
+          onChangePassword={handleChangePassword}
+          onOpenImportExport={() => setShowImportExport(true)}
+        />
       );
       default: return renderVault();
     }

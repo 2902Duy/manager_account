@@ -6,9 +6,17 @@ Password/account manager with a React frontend, Express backend, and Supabase Po
 
 - `frontend/`: React + Vite app.
 - `backend/`: Express API server.
-- `backend/migration.sql`: migration for pinned accounts, trash, and activity logs.
-- `backend/migration_v2.sql`: migration for tags and password strength.
-- `backend/migration_v3_maintenance.sql`: cleanup function and optimized indexes.
+- `backend/migrations/`: ordered Supabase SQL migrations.
+- `backend/migration.sql`, `backend/migration_v2.sql`, `backend/migration_v3_maintenance.sql`: legacy shortcut migration files kept for compatibility.
+
+## Migration Order
+
+Run these files in Supabase SQL Editor in order:
+
+1. `backend/migrations/001_initial.sql`
+2. `backend/migrations/002_activity_trash.sql`
+3. `backend/migrations/003_tags_strength.sql`
+4. `backend/migrations/004_maintenance_indexes.sql`
 
 ## Supabase Tables
 
@@ -129,3 +137,21 @@ The backend exposes public health endpoints for Render and uptime monitors:
 - `GET /health`
 
 Both return HTTP 200 when the backend is running.
+
+## Account API Filters
+
+`GET /api/accounts` supports optional query parameters:
+
+- `search`: searches `account`, `account_type`, `information`, and `gmail_link`. If it starts with `#`, it filters by tag.
+- `tag`: filters accounts containing an exact tag.
+- `type`: filters by `account_type`.
+- `limit`: caps results, max `500`.
+
+Examples:
+
+```text
+GET /api/accounts?search=gmail
+GET /api/accounts?search=%23work
+GET /api/accounts?tag=work
+GET /api/accounts?type=Email
+```
