@@ -11,7 +11,7 @@ export default function Navbar({
   return (
     <nav className="flex justify-between items-center h-[54px] px-4 sm:px-6 border-b border-whisper dark:border-neutral-800 bg-notion-white dark:bg-[#202020] sticky top-0 z-10">
       <div className="flex items-center gap-2.5 cursor-pointer">
-        <img src="/logo.png" alt="DLock" className="w-[30px] h-[30px] sm:w-[34px] sm:h-[34px] object-contain" />
+        <img src="/logo-dlock.png" alt="DLock" className="w-[30px] h-[30px] sm:w-[34px] sm:h-[34px] object-contain" />
         <span className="font-display text-[15px] sm:text-[17px] text-notion-black dark:text-neutral-100">DLock</span>
       </div>
       <div className="flex items-center gap-1">
