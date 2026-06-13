@@ -42,9 +42,9 @@ export default function Login({ onLogin }) {
     <div className="min-h-screen bg-notion-white dark:bg-[#191919] flex flex-col justify-center items-center py-12 px-4">
       <div className="max-w-[400px] w-full">
         <div className="flex flex-col items-center mb-8">
-          <img src="/logo.png" alt="Account Vault" className="w-14 h-14 mb-4 object-contain" />
+          <img src="/logo.png" alt="DLock" className="w-14 h-14 mb-4 object-contain" />
           <h1 className="text-[26px] font-bold tracking-[-0.6px] text-notion-black dark:text-white">Đăng nhập</h1>
-          <p className="text-[14px] text-warm-gray-500 dark:text-neutral-400 mt-1">Tiếp tục vào Account Vault</p>
+          <p className="text-[14px] text-warm-gray-500 dark:text-neutral-400 mt-1">Tiếp tục vào DLock</p>
         </div>
 
         <div className="bg-notion-white dark:bg-[#252525] border border-whisper dark:border-neutral-700 rounded-[12px] shadow-deep p-8">

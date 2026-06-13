@@ -11,8 +11,8 @@ export default function Navbar({
   return (
     <nav className="flex justify-between items-center h-[54px] px-4 sm:px-6 border-b border-whisper dark:border-neutral-800 bg-notion-white dark:bg-[#202020] sticky top-0 z-10">
       <div className="flex items-center gap-2.5 cursor-pointer">
-        <img src="/logo.png" alt="Account Vault" className="w-[30px] h-[30px] sm:w-[34px] sm:h-[34px] object-contain" />
-        <span className="font-display text-[15px] sm:text-[17px] text-notion-black dark:text-neutral-100">Account Vault</span>
+        <img src="/logo.png" alt="DLock" className="w-[30px] h-[30px] sm:w-[34px] sm:h-[34px] object-contain" />
+        <span className="font-display text-[15px] sm:text-[17px] text-notion-black dark:text-neutral-100">DLock</span>
       </div>
       <div className="flex items-center gap-1">
         <button onClick={() => setDark(!dark)} className="p-2 rounded-[6px] text-warm-gray-500 dark:text-neutral-400 hover:bg-warm-white dark:hover:bg-neutral-800 transition" title={dark ? 'Chế độ sáng' : 'Chế độ tối'}>

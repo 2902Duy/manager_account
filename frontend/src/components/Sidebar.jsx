@@ -41,11 +41,11 @@ export default function Sidebar({
       <div className="relative flex h-[72px] items-center px-4">
         <div className={`flex min-w-0 items-center ${isCollapsed ? 'w-full justify-center' : 'gap-3'}`}>
           <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-[10px] border border-whisper bg-white shadow-sm dark:border-neutral-800 dark:bg-neutral-900">
-            <img src="/logo.png" alt="Account Vault" className="h-7 w-7 object-contain" />
+            <img src="/logo.png" alt="DLock" className="h-7 w-7 object-contain" />
           </div>
           {!isCollapsed && (
             <div className="min-w-0">
-              <p className="truncate font-display text-[17px]">Account Vault</p>
+              <p className="truncate font-display text-[17px]">DLock</p>
               <p className="truncate text-[11px] font-medium text-warm-gray-500 dark:text-neutral-500">Secure workspace</p>
             </div>
           )}

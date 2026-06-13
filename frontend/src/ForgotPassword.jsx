@@ -29,7 +29,7 @@ export default function ForgotPassword() {
       <div className="max-w-[400px] w-full">
         {/* Header */}
         <div className="flex flex-col items-center mb-8">
-          <img src="/logo.png" alt="Account Vault" className="w-14 h-14 mb-4 object-contain" />
+          <img src="/logo.png" alt="DLock" className="w-14 h-14 mb-4 object-contain" />
           <h1 className="text-[26px] font-bold tracking-[-0.6px] text-notion-black dark:text-white">Quên mật khẩu</h1>
           <p className="text-[14px] text-warm-gray-500 dark:text-neutral-400 mt-1 text-center">
             Nhập email để nhận link đặt lại mật khẩu
