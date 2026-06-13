@@ -28,8 +28,8 @@ export default function UnlockModal({
           <div className="w-14 h-14 bg-amber-50 dark:bg-amber-500/10 rounded-full flex items-center justify-center text-amber-500 mb-4">
             <Package size={28} />
           </div>
-          <h2 className="text-[20px] font-bold text-notion-black dark:text-white">Mở khóa Vault</h2>
-          <p className="text-[13px] text-warm-gray-500 dark:text-neutral-400 mt-2">Vui lòng nhập mật khẩu đăng nhập để xem thông tin nhạy cảm.</p>
+          <h2 className="text-[20px] font-bold text-notion-black dark:text-white">Mở khóa DLock</h2>
+          <p className="text-[13px] text-warm-gray-500 dark:text-neutral-400 mt-2">Vui lòng nhập mật khẩu đăng nhập để xem thông tin.</p>
         </div>
         <form onSubmit={onUnlock} className="space-y-4">
           <div>

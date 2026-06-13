@@ -1,12 +1,12 @@
 import React from 'react';
 import { Sun, Moon, Clock, Trash2, Package, RefreshCw, LogOut } from 'lucide-react';
 
-export default function Navbar({ 
-  dark, setDark, 
-  onShowActivity, 
-  onShowTrash, 
-  isLocked, setIsLocked, 
-  onLogout 
+export default function Navbar({
+  dark, setDark,
+  onShowActivity,
+  onShowTrash,
+  isLocked, setIsLocked,
+  onLogout
 }) {
   return (
     <nav className="flex justify-between items-center h-[54px] px-4 sm:px-6 border-b border-whisper dark:border-neutral-800 bg-notion-white dark:bg-[#202020] sticky top-0 z-10">
@@ -25,7 +25,7 @@ export default function Navbar({
           <Trash2 size={16} />
         </button>
         <div className="h-4 w-[1px] bg-whisper dark:bg-neutral-800 mx-1"></div>
-        <button onClick={() => setIsLocked(!isLocked)} className={`p-2 rounded-[6px] transition flex items-center gap-1.5 ${isLocked ? 'text-amber-500 bg-amber-50 dark:bg-amber-500/10' : 'text-warm-gray-500 dark:text-neutral-400 hover:bg-warm-white dark:hover:bg-neutral-800'}`} title={isLocked ? 'Vault đang khóa' : 'Khóa Vault'}>
+        <button onClick={() => setIsLocked(!isLocked)} className={`p-2 rounded-[6px] transition flex items-center gap-1.5 ${isLocked ? 'text-amber-500 bg-amber-50 dark:bg-amber-500/10' : 'text-warm-gray-500 dark:text-neutral-400 hover:bg-warm-white dark:hover:bg-neutral-800'}`} title={isLocked ? 'DLock đang khóa' : 'Khóa DLock'}>
           {isLocked ? <Package size={16} /> : <RefreshCw size={16} />}
           <span className="text-[12px] font-medium hidden md:inline">{isLocked ? 'Đã khóa' : 'Đang mở'}</span>
         </button>

@@ -647,7 +647,7 @@ export default function Dashboard({ token, onLogout }) {
         <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 max-w-3xl">
           <h1 className="text-[32px] font-bold mb-2">Cài đặt</h1>
           <p className="text-warm-gray-500 mb-8">Quản lý bảo mật, giao diện và dữ liệu cá nhân của bạn.</p>
-          
+
           <div className="grid gap-6">
             {/* Giao diện */}
             <div className="bg-white dark:bg-neutral-800 p-6 rounded-2xl border border-whisper dark:border-neutral-700 shadow-sm">
@@ -673,16 +673,15 @@ export default function Dashboard({ token, onLogout }) {
               <div className="space-y-6">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="font-semibold text-[14px]">Trạng thái Vault</p>
+                    <p className="font-semibold text-[14px]">Trạng thái DLock</p>
                     <p className="text-[13px] text-warm-gray-400">Khóa kho dữ liệu ngay lập tức.</p>
                   </div>
-                  <button 
+                  <button
                     onClick={() => isLocked ? setShowUnlockModal(true) : lockVault()}
-                    className={`px-4 py-1.5 rounded-lg text-[13px] font-bold transition-all border ${
-                      isLocked 
-                        ? 'bg-red-50 dark:bg-red-500/10 text-red-500 border-red-200 dark:border-red-500/20' 
+                    className={`px-4 py-1.5 rounded-lg text-[13px] font-bold transition-all border ${isLocked
+                        ? 'bg-red-50 dark:bg-red-500/10 text-red-500 border-red-200 dark:border-red-500/20'
                         : 'bg-emerald-50 dark:bg-emerald-500/10 text-emerald-500 border-emerald-200 dark:border-emerald-500/20'
-                    }`}
+                      }`}
                   >
                     {isLocked ? 'Đang khóa (Mở ngay)' : 'Đang mở (Khóa ngay)'}
                   </button>

@@ -66,13 +66,11 @@ export default function Sidebar({
             key={item.id}
             onClick={() => setActiveTab(item.id)}
             title={isCollapsed ? item.label : undefined}
-            className={`group relative flex h-11 w-full items-center rounded-[10px] text-[14px] font-semibold transition-all ${
-              isCollapsed ? 'justify-center px-0' : 'gap-3 px-3'
-            } ${
-              activeTab === item.id
+            className={`group relative flex h-11 w-full items-center rounded-[10px] text-[14px] font-semibold transition-all ${isCollapsed ? 'justify-center px-0' : 'gap-3 px-3'
+              } ${activeTab === item.id
                 ? 'bg-notion-blue/10 text-notion-blue dark:bg-blue-500/10 dark:text-blue-400'
                 : 'text-warm-gray-500 hover:bg-white hover:text-notion-black dark:text-neutral-400 dark:hover:bg-neutral-800 dark:hover:text-white'
-            }`}
+              }`}
           >
             {activeTab === item.id && (
               <Motion.span
@@ -92,19 +90,17 @@ export default function Sidebar({
       <div className="space-y-3 border-t border-whisper p-3 dark:border-neutral-800">
         <button
           onClick={onLock}
-          title={isLocked ? 'Vault đang khóa' : 'Khóa Vault'}
-          className={`flex w-full items-center rounded-[10px] border transition ${
-            isCollapsed ? 'h-11 justify-center px-0' : 'gap-3 px-3 py-2.5'
-          } ${
-            isLocked
+          title={isLocked ? 'DLock đang khóa' : 'Khóa DLock'}
+          className={`flex w-full items-center rounded-[10px] border transition ${isCollapsed ? 'h-11 justify-center px-0' : 'gap-3 px-3 py-2.5'
+            } ${isLocked
               ? 'border-amber-200 bg-amber-50 text-amber-700 hover:bg-amber-100 dark:border-amber-500/20 dark:bg-amber-500/10 dark:text-amber-300'
               : 'border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 dark:border-emerald-500/20 dark:bg-emerald-500/10 dark:text-emerald-300'
-          }`}
+            }`}
         >
           {isLocked ? <LockKeyhole size={18} /> : <UnlockKeyhole size={18} />}
           {!isCollapsed && (
             <div className="min-w-0 text-left">
-              <p className="truncate text-[13px] font-bold">{isLocked ? 'Vault đang khóa' : 'Vault đang mở'}</p>
+              <p className="truncate text-[13px] font-bold">{isLocked ? 'DLock đang khóa' : 'DLock đang mở'}</p>
               <p className="truncate text-[11px] font-medium opacity-75">{isLocked ? 'Bấm để mở khóa' : 'Bấm để khóa ngay'}</p>
             </div>
           )}
@@ -125,9 +121,8 @@ export default function Sidebar({
         <button
           onClick={onLogout}
           title="Đăng xuất"
-          className={`group flex h-11 w-full items-center rounded-[10px] text-warm-gray-500 transition-colors hover:bg-red-50 hover:text-red-600 dark:text-neutral-400 dark:hover:bg-red-500/10 dark:hover:text-red-400 ${
-            isCollapsed ? 'justify-center px-0' : 'gap-3 px-3'
-          }`}
+          className={`group flex h-11 w-full items-center rounded-[10px] text-warm-gray-500 transition-colors hover:bg-red-50 hover:text-red-600 dark:text-neutral-400 dark:hover:bg-red-500/10 dark:hover:text-red-400 ${isCollapsed ? 'justify-center px-0' : 'gap-3 px-3'
+            }`}
         >
           <LogOut size={19} className="transition-transform group-hover:translate-x-0.5" />
           {!isCollapsed && <span className="text-[14px] font-semibold">Đăng xuất</span>}
