@@ -296,7 +296,7 @@ export default function Dashboard({ token, onLogout }) {
       await revealAccountPassword(id);
       setShowPwd(prev => ({ ...prev, [id]: true }));
     } catch {
-      setUnlockError('KhÃ´ng thá»ƒ má»Ÿ máº­t kháº©u. Vui lÃ²ng khÃ³a vÃ  má»Ÿ láº¡i vault.');
+      setUnlockError('Không thể mở mật khẩu. Vui lòng khóa và mở lại vault.');
       lockVault();
       setShowUnlockModal(true);
     }
@@ -311,7 +311,7 @@ export default function Dashboard({ token, onLogout }) {
       setCopied(id);
       setTimeout(() => setCopied(null), 1500);
     } catch {
-      setUnlockError('KhÃ´ng thá»ƒ sao chÃ©p máº­t kháº©u. Vui lÃ²ng khÃ³a vÃ  má»Ÿ láº¡i vault.');
+      setUnlockError('Không thể sao chép mật khẩu. Vui lòng khóa và mở lại vault.');
       lockVault();
       setShowUnlockModal(true);
     }
@@ -416,7 +416,7 @@ export default function Dashboard({ token, onLogout }) {
       const revealedPassword = acc.password || await revealAccountPassword(acc.id);
       openEditModal(acc, revealedPassword);
     } catch {
-      setUnlockError('KhÃ´ng thá»ƒ má»Ÿ thÃ´ng tin sá»­a. Vui lÃ²ng khÃ³a vÃ  má»Ÿ láº¡i vault.');
+      setUnlockError('Không thể mở thông tin sửa. Vui lòng khóa và mở lại vault.');
       lockVault();
       setShowUnlockModal(true);
     }
@@ -511,11 +511,8 @@ export default function Dashboard({ token, onLogout }) {
     return exported;
   };
 
-  const handleEncryptedExport = async (format) => {
+  const handleEncryptedExport = async (format, passphrase) => {
     try {
-      const passphrase = window.prompt('Enter an export passphrase. You will need it to import this file.');
-      if (!passphrase) return;
-
       const exportedAccounts = await getExportAccounts();
       const payload = {
         exported_at: new Date().toISOString(),
@@ -528,26 +525,19 @@ export default function Dashboard({ token, onLogout }) {
       downloadTextFile(`dlock-export-${date}.${format}.encrypted.json`, JSON.stringify(encrypted, null, 2));
     } catch (err) {
       if (err.message !== 'Vault is locked') {
-        alert('Could not export data. Check the passphrase and vault state.');
+        throw new Error('Could not export data. Check the vault state.');
       }
+      throw err;
     }
   };
 
-  const handleEncryptedImport = async (e) => {
-    const file = e.target.files?.[0];
-    e.target.value = '';
-    if (!file) return;
-
+  const handleEncryptedImport = async (file, passphrase) => {
     try {
-      const passphrase = window.prompt('Enter the export passphrase.');
-      if (!passphrase) return;
-
       const encrypted = JSON.parse(await file.text());
       const decrypted = await decryptExportPayload(encrypted, passphrase);
       const importedAccounts = (decrypted.accounts || []).map(sanitizeAccountForExport);
       if (importedAccounts.length === 0) {
-        alert('No accounts found in this file.');
-        return;
+        throw new Error('No accounts found in this file.');
       }
 
       if (isLocalDevSession) {
@@ -571,7 +561,7 @@ export default function Dashboard({ token, onLogout }) {
       alert(`Imported ${importedAccounts.length} accounts.`);
       setShowImportExport(false);
     } catch (err) {
-      alert('Could not import this file. The passphrase or file format may be wrong.');
+      throw new Error('Could not import this file. The passphrase or file format may be wrong.');
     }
   };
 
