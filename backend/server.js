@@ -170,6 +170,15 @@ app.use(cors({
 
 app.use(express.json());
 
+// Public health endpoints for uptime monitors and Render keep-alive pings.
+app.get('/', (req, res) => {
+  res.status(200).json({ status: 'ok', service: 'DLock API' });
+});
+
+app.get('/health', (req, res) => {
+  res.status(200).json({ status: 'ok' });
+});
+
 // Auth Middleware: verify Supabase JWT
 const authMiddleware = async (req, res, next) => {
   const authHeader = req.headers.authorization;
