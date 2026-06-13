@@ -497,6 +497,8 @@ app.post('/api/accounts/bulk', authMiddleware, async (req, res) => {
     password: encrypt(a.password || ''), // Mã hóa
     information: a.information || '',
     gmail_link: a.gmail_link || '',
+    tags: Array.isArray(a.tags) ? a.tags : [],
+    strength_score: calculateStrength(a.password || ''),
     user_id: req.user.id
   }));
 
@@ -679,12 +681,25 @@ app.delete('/api/accounts/:id/permanent', authMiddleware, async (req, res) => {
 
 // ─── Activity Log ───
 app.get('/api/activity-logs', authMiddleware, async (req, res) => {
-  const { data, error } = await supabase
+  const { action, search } = req.query;
+  const limit = Math.min(Math.max(parseInt(req.query.limit, 10) || 50, 1), 200);
+
+  let query = supabase
     .from('activity_logs')
     .select('*')
     .eq('user_id', req.user.id)
     .order('created_at', { ascending: false })
-    .limit(50);
+    .limit(limit);
+
+  if (action && action !== 'all') {
+    query = query.eq('action', action);
+  }
+
+  if (search) {
+    query = query.ilike('details->>account_name', `%${search}%`);
+  }
+
+  const { data, error } = await query;
 
   if (error) { console.error(error); return res.status(500).json({ error: 'Lỗi tải lịch sử' }); }
   res.json(data);

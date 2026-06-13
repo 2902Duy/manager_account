@@ -19,6 +19,7 @@ import PasswordInput from './components/PasswordInput';
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
 const LOCAL_DEV_TOKEN = 'local-dev-token';
 const LOCAL_ACCOUNTS_KEY = 'local-dev-accounts';
+const AUTO_LOCK_MINUTES_KEY = 'dlock-auto-lock-minutes';
 const LOCAL_TEST_PASSWORD = 'Test@123456';
 const LOCAL_SAMPLE_ACCOUNTS = [
   {
@@ -68,6 +69,102 @@ const getApiErrorMessage = (err) => {
   return 'Lỗi lưu dữ liệu';
 };
 
+const sanitizeAccountForExport = (acc) => ({
+  account_type: acc.account_type || '',
+  account: acc.account || '',
+  password: acc.password || '',
+  information: acc.information || '',
+  gmail_link: acc.gmail_link || '',
+  tags: Array.isArray(acc.tags) ? acc.tags : [],
+});
+
+const downloadTextFile = (filename, content, type = 'application/json') => {
+  const blob = new Blob([content], { type });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(url);
+};
+
+const bytesToBase64 = (bytes) => {
+  let binary = '';
+  const view = new Uint8Array(bytes);
+  for (let i = 0; i < view.length; i += 1) binary += String.fromCharCode(view[i]);
+  return btoa(binary);
+};
+const base64ToBytes = (value) => Uint8Array.from(atob(value), char => char.charCodeAt(0));
+
+const deriveExportKey = async (passphrase, salt) => {
+  const material = await crypto.subtle.importKey(
+    'raw',
+    new TextEncoder().encode(passphrase),
+    'PBKDF2',
+    false,
+    ['deriveKey']
+  );
+
+  return crypto.subtle.deriveKey(
+    { name: 'PBKDF2', salt, iterations: 250000, hash: 'SHA-256' },
+    material,
+    { name: 'AES-GCM', length: 256 },
+    false,
+    ['encrypt', 'decrypt']
+  );
+};
+
+const encryptExportPayload = async (payload, passphrase) => {
+  const salt = crypto.getRandomValues(new Uint8Array(16));
+  const iv = crypto.getRandomValues(new Uint8Array(12));
+  const key = await deriveExportKey(passphrase, salt);
+  const ciphertext = await crypto.subtle.encrypt(
+    { name: 'AES-GCM', iv },
+    key,
+    new TextEncoder().encode(JSON.stringify(payload))
+  );
+
+  return {
+    format: 'dlock-encrypted-export',
+    version: 1,
+    kdf: 'PBKDF2-SHA256',
+    iterations: 250000,
+    cipher: 'AES-256-GCM',
+    salt: bytesToBase64(salt),
+    iv: bytesToBase64(iv),
+    data: bytesToBase64(ciphertext),
+  };
+};
+
+const decryptExportPayload = async (payload, passphrase) => {
+  if (payload?.format !== 'dlock-encrypted-export') {
+    throw new Error('Unsupported export format');
+  }
+
+  const key = await deriveExportKey(passphrase, base64ToBytes(payload.salt));
+  const plaintext = await crypto.subtle.decrypt(
+    { name: 'AES-GCM', iv: base64ToBytes(payload.iv) },
+    key,
+    base64ToBytes(payload.data)
+  );
+
+  return JSON.parse(new TextDecoder().decode(plaintext));
+};
+
+const accountsToCsv = (accounts) => {
+  const headers = ['account_type', 'account', 'password', 'information', 'gmail_link', 'tags'];
+  const escape = (value) => `"${String(value ?? '').replace(/"/g, '""')}"`;
+  return [
+    headers.join(','),
+    ...accounts.map(acc => headers.map(header => {
+      const value = header === 'tags' ? (acc.tags || []).join('|') : acc[header];
+      return escape(value);
+    }).join(',')),
+  ].join('\n');
+};
+
 export default function Dashboard({ token, onLogout }) {
   const isLocalDevSession = import.meta.env.DEV && token === LOCAL_DEV_TOKEN;
   const [accounts, setAccounts] = useState([]);
@@ -84,6 +181,7 @@ export default function Dashboard({ token, onLogout }) {
   const [activeTab, setActiveTab] = useState('vault');
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [dark, setDark] = useState(() => localStorage.getItem('theme') === 'dark');
+  const [autoLockMinutes, setAutoLockMinutes] = useState(() => Number(localStorage.getItem(AUTO_LOCK_MINUTES_KEY) || 10));
   const [isLocked, setIsLocked] = useState(true);
   const [showUnlockModal, setShowUnlockModal] = useState(false);
   const [unlockPassword, setUnlockPassword] = useState('');
@@ -132,24 +230,32 @@ export default function Dashboard({ token, onLogout }) {
     localStorage.setItem('theme', dark ? 'dark' : 'light');
   }, [dark]);
 
+  useEffect(() => {
+    localStorage.setItem(AUTO_LOCK_MINUTES_KEY, String(autoLockMinutes));
+  }, [autoLockMinutes]);
+
   // Auto-lock logic
   useEffect(() => {
     let timer;
     const resetTimer = () => {
       clearTimeout(timer);
-      timer = setTimeout(lockVault, 10 * 60 * 1000); // 10 mins
+      if (autoLockMinutes > 0) timer = setTimeout(lockVault, autoLockMinutes * 60 * 1000);
     };
-    if (!isLocked) {
+    if (!isLocked && autoLockMinutes > 0) {
       window.addEventListener('mousemove', resetTimer);
       window.addEventListener('keydown', resetTimer);
+      window.addEventListener('click', resetTimer);
+      window.addEventListener('touchstart', resetTimer);
       resetTimer();
     }
     return () => {
       window.removeEventListener('mousemove', resetTimer);
       window.removeEventListener('keydown', resetTimer);
+      window.removeEventListener('click', resetTimer);
+      window.removeEventListener('touchstart', resetTimer);
       clearTimeout(timer);
     };
-  }, [isLocked]);
+  }, [isLocked, autoLockMinutes]);
 
   const fetchAccounts = async () => {
     if (isLocalDevSession) {
@@ -388,6 +494,87 @@ export default function Dashboard({ token, onLogout }) {
     }
   };
 
+  const getExportAccounts = async () => {
+    if (isLocked) {
+      alert('Unlock the vault before exporting data.');
+      setShowUnlockModal(true);
+      throw new Error('Vault is locked');
+    }
+
+    if (isLocalDevSession) return readLocalAccounts().map(sanitizeAccountForExport);
+
+    const exported = [];
+    for (const account of accounts) {
+      const password = account.password || await revealAccountPassword(account.id);
+      exported.push(sanitizeAccountForExport({ ...account, password }));
+    }
+    return exported;
+  };
+
+  const handleEncryptedExport = async (format) => {
+    try {
+      const passphrase = window.prompt('Enter an export passphrase. You will need it to import this file.');
+      if (!passphrase) return;
+
+      const exportedAccounts = await getExportAccounts();
+      const payload = {
+        exported_at: new Date().toISOString(),
+        format,
+        accounts: exportedAccounts,
+        content: format === 'csv' ? accountsToCsv(exportedAccounts) : null,
+      };
+      const encrypted = await encryptExportPayload(payload, passphrase);
+      const date = new Date().toISOString().slice(0, 10);
+      downloadTextFile(`dlock-export-${date}.${format}.encrypted.json`, JSON.stringify(encrypted, null, 2));
+    } catch (err) {
+      if (err.message !== 'Vault is locked') {
+        alert('Could not export data. Check the passphrase and vault state.');
+      }
+    }
+  };
+
+  const handleEncryptedImport = async (e) => {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+
+    try {
+      const passphrase = window.prompt('Enter the export passphrase.');
+      if (!passphrase) return;
+
+      const encrypted = JSON.parse(await file.text());
+      const decrypted = await decryptExportPayload(encrypted, passphrase);
+      const importedAccounts = (decrypted.accounts || []).map(sanitizeAccountForExport);
+      if (importedAccounts.length === 0) {
+        alert('No accounts found in this file.');
+        return;
+      }
+
+      if (isLocalDevSession) {
+        const next = [...accounts, ...importedAccounts.map((acc, index) => ({
+          ...acc,
+          id: Date.now() + index,
+          strength_score: 0,
+          is_pinned: false,
+        }))];
+        setAccounts(next);
+        writeLocalAccounts(next);
+      } else {
+        await axios.post(
+          `${API_URL}/api/accounts/bulk`,
+          { accounts: importedAccounts },
+          { headers: { Authorization: `Bearer ${token}` } }
+        );
+        await fetchAccounts();
+      }
+
+      alert(`Imported ${importedAccounts.length} accounts.`);
+      setShowImportExport(false);
+    } catch (err) {
+      alert('Could not import this file. The passphrase or file format may be wrong.');
+    }
+  };
+
   // Filter Logic
   const filtered = accounts.filter(acc => {
     const searchLower = search.toLowerCase();
@@ -509,6 +696,24 @@ export default function Dashboard({ token, onLogout }) {
                   >
                     {isLocked ? 'Đang khóa (Mở ngay)' : 'Đang mở (Khóa ngay)'}
                   </button>
+                </div>
+
+                <div className="flex items-center justify-between border-t border-whisper pt-4 dark:border-neutral-700">
+                  <div>
+                    <p className="font-semibold text-[14px]">Auto-lock</p>
+                    <p className="text-[13px] text-warm-gray-400">Lock the vault after a period of inactivity.</p>
+                  </div>
+                  <select
+                    value={autoLockMinutes}
+                    onChange={e => setAutoLockMinutes(Number(e.target.value))}
+                    className="rounded-[8px] border border-whisper bg-warm-white px-3 py-2 text-[13px] font-semibold text-notion-black outline-none transition focus:border-notion-blue focus:ring-2 focus:ring-notion-blue/20 dark:border-neutral-700 dark:bg-neutral-900 dark:text-white"
+                  >
+                    <option value={0}>Off</option>
+                    <option value={5}>5 min</option>
+                    <option value={10}>10 min</option>
+                    <option value={15}>15 min</option>
+                    <option value={30}>30 min</option>
+                  </select>
                 </div>
 
                 <form onSubmit={handleChangePassword} className="pt-4 border-t border-whisper dark:border-neutral-700">
@@ -647,8 +852,8 @@ export default function Dashboard({ token, onLogout }) {
         {showImportExport && (
           <ImportExportModal
             onClose={() => setShowImportExport(false)}
-            onExport={() => { /* Reuse export logic from before */ }}
-            onImport={async () => { /* Reuse import logic */ }}
+            onExport={handleEncryptedExport}
+            onImport={handleEncryptedImport}
           />
         )}
       </AnimatePresence>

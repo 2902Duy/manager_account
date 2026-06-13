@@ -103,6 +103,11 @@ export default function ActivityLogModal({
     try {
       const res = await axios.get(`${API_URL}/api/activity-logs`, {
         headers: { Authorization: `Bearer ${token}` },
+        params: {
+          action: actionFilter,
+          search: search.trim() || undefined,
+          limit: 100,
+        },
       });
       setLogs(res.data);
     } catch (err) {
@@ -117,6 +122,11 @@ export default function ActivityLogModal({
 
     axios.get(`${API_URL}/api/activity-logs`, {
       headers: { Authorization: `Bearer ${token}` },
+      params: {
+        action: actionFilter,
+        search: search.trim() || undefined,
+        limit: 100,
+      },
     }).then(res => {
       if (!cancelled) setLogs(res.data);
     }).catch(err => {
@@ -130,7 +140,7 @@ export default function ActivityLogModal({
     return () => {
       cancelled = true;
     };
-  }, [token]);
+  }, [token, actionFilter, search]);
 
   const filteredLogs = useMemo(() => {
     const keyword = search.trim().toLowerCase();
