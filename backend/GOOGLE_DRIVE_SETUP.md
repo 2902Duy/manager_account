@@ -7,6 +7,8 @@ DLock/
   Account Images/
 ```
 
+The app also adds an image manager screen. It lists Drive images by date, uploads images into `Account Images`, and opens images in a fullscreen viewer.
+
 ## 1. Run the Supabase migration
 
 Open Supabase SQL Editor and run `backend/migration_drive_storage.sql`.
@@ -60,3 +62,6 @@ JSON_BODY_LIMIT=12mb
 4. Approve Google access.
 5. Confirm the Drive section shows connected status.
 6. Check Google Drive for `DLock / Account Images`.
+7. Open the sidebar item `Quản lý ảnh`.
+8. Upload one or more images.
+9. Confirm the gallery groups images by date and opens images fullscreen.
