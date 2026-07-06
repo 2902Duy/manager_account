@@ -9,7 +9,8 @@ import {
   UnlockKeyhole,
   ChevronLeft,
   ChevronRight,
-  User
+  User,
+  Images
 } from 'lucide-react';
 import { motion as Motion } from 'framer-motion';
 
@@ -25,6 +26,7 @@ export default function Sidebar({
 }) {
   const menuItems = [
     { id: 'vault', label: 'Danh sách tài khoản', icon: Shield },
+    { id: 'images', label: 'Quản lý ảnh', icon: Images },
     { id: 'activity', label: 'Lịch sử hoạt động', icon: History },
     { id: 'trash', label: 'Thùng rác', icon: Trash2 },
     { id: 'settings', label: 'Cài đặt', icon: Settings },
