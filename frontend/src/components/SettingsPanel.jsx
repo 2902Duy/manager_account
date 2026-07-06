@@ -1,6 +1,7 @@
 import React from 'react';
 import { Moon, Settings, Shield } from 'lucide-react';
 import PasswordInput from './PasswordInput';
+import DriveSettings from './DriveSettings';
 
 export default function SettingsPanel({
   dark,
@@ -148,6 +149,8 @@ export default function SettingsPanel({
             </form>
           </div>
         </section>
+
+        <DriveSettings />
 
         <section className="bg-white dark:bg-neutral-800 p-6 rounded-2xl border border-whisper dark:border-neutral-700 shadow-sm">
           <h3 className="text-[16px] font-bold mb-4 flex items-center gap-2 text-notion-black dark:text-white">
