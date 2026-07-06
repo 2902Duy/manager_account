@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import Login from './Login';
 import Register from './Register';
@@ -6,8 +6,19 @@ import ForgotPassword from './ForgotPassword';
 import ResetPassword from './ResetPassword';
 import Dashboard from './Dashboard';
 
+const DEFAULT_THEME = 'light';
+
 function App() {
   const [token, setToken] = useState(sessionStorage.getItem('token') || null);
+
+  useEffect(() => {
+    if (!localStorage.getItem('theme')) {
+      localStorage.setItem('theme', DEFAULT_THEME);
+    }
+
+    const savedTheme = localStorage.getItem('theme');
+    document.documentElement.classList.toggle('dark', savedTheme === 'dark');
+  }, []);
 
   const handleLogin = (t, u) => {
     sessionStorage.setItem('token', t);
