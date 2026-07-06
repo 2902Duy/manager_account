@@ -7,6 +7,7 @@ const DRIVE_SCOPES = [
 const DRIVE_FOLDER_MIME = 'application/vnd.google-apps.folder';
 const DEFAULT_ROOT_FOLDER = 'DLock';
 const DEFAULT_IMAGE_FOLDER = 'Account Images';
+const MAX_IMAGE_BYTES = 8 * 1024 * 1024;
 
 const readJson = async (response) => {
   const text = await response.text();
@@ -15,6 +16,7 @@ const readJson = async (response) => {
 };
 
 const escapeDriveQueryValue = (value) => String(value || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+const cleanFileName = (name) => String(name || 'image').replace(/[\\/:*?"<>|]/g, '-').slice(0, 160);
 
 module.exports = function registerDriveRoutes({ app, supabase, authMiddleware, encrypt, decrypt, getResetRedirectOrigin }) {
   const getOAuthConfig = () => ({
@@ -120,6 +122,17 @@ module.exports = function registerDriveRoutes({ app, supabase, authMiddleware, e
     return data || null;
   };
 
+  const requireDriveConnection = async (userId) => {
+    const connection = await getConnection(userId);
+    if (!connection?.refresh_token_encrypted) {
+      const err = new Error('Bạn chưa kết nối Google Drive.');
+      err.status = 400;
+      throw err;
+    }
+    const accessToken = await refreshAccessToken(decrypt(connection.refresh_token_encrypted));
+    return { connection, accessToken };
+  };
+
   const findDriveFolder = async (accessToken, name, parentId = 'root') => {
     const q = [
       `name = '${escapeDriveQueryValue(name)}'`,
@@ -152,6 +165,43 @@ module.exports = function registerDriveRoutes({ app, supabase, authMiddleware, e
   const ensureDriveFolder = async (accessToken, name, parentId = 'root') => {
     const existing = await findDriveFolder(accessToken, name, parentId);
     return existing || createDriveFolder(accessToken, name, parentId);
+  };
+
+  const ensureImageFolderForConnection = async (connection, accessToken) => {
+    if (connection.image_folder_id) return connection.image_folder_id;
+
+    const rootFolder = await ensureDriveFolder(accessToken, process.env.GOOGLE_DRIVE_ROOT_FOLDER || DEFAULT_ROOT_FOLDER, 'root');
+    const imageFolder = await ensureDriveFolder(accessToken, process.env.GOOGLE_DRIVE_IMAGE_FOLDER || DEFAULT_IMAGE_FOLDER, rootFolder.id);
+
+    await supabase
+      .from('user_drive_connections')
+      .update({
+        root_folder_id: rootFolder.id,
+        image_folder_id: imageFolder.id,
+        updated_at: new Date().toISOString(),
+      })
+      .eq('user_id', connection.user_id);
+
+    connection.root_folder_id = rootFolder.id;
+    connection.image_folder_id = imageFolder.id;
+    return imageFolder.id;
+  };
+
+  const getDriveFileMeta = async (accessToken, fileId) => {
+    const url = new URL(`https://www.googleapis.com/drive/v3/files/${encodeURIComponent(fileId)}`);
+    url.searchParams.set('fields', 'id,name,mimeType,size,createdTime,modifiedTime,parents,thumbnailLink,webViewLink');
+    const response = await googleRequest(url.toString(), { accessToken });
+    return readJson(response);
+  };
+
+  const assertFileInImageFolder = async (accessToken, fileId, imageFolderId) => {
+    const meta = await getDriveFileMeta(accessToken, fileId);
+    if (!meta.mimeType?.startsWith('image/') || !Array.isArray(meta.parents) || !meta.parents.includes(imageFolderId)) {
+      const err = new Error('Ảnh không thuộc thư mục DLock / Account Images.');
+      err.status = 403;
+      throw err;
+    }
+    return meta;
   };
 
   app.get('/api/drive/auth-url', authMiddleware, async (req, res) => {
@@ -253,6 +303,102 @@ module.exports = function registerDriveRoutes({ app, supabase, authMiddleware, e
     } catch (err) {
       console.error('Drive disconnect error:', err);
       res.status(500).json({ error: 'Không ngắt được Google Drive' });
+    }
+  });
+
+  app.get('/api/drive/images', authMiddleware, async (req, res) => {
+    try {
+      const { connection, accessToken } = await requireDriveConnection(req.user.id);
+      const imageFolderId = await ensureImageFolderForConnection(connection, accessToken);
+      const pageSize = Math.min(Math.max(parseInt(req.query.limit, 10) || 100, 1), 200);
+
+      const url = new URL('https://www.googleapis.com/drive/v3/files');
+      url.searchParams.set('q', `'${escapeDriveQueryValue(imageFolderId)}' in parents and mimeType contains 'image/' and trashed = false`);
+      url.searchParams.set('spaces', 'drive');
+      url.searchParams.set('fields', 'nextPageToken,files(id,name,mimeType,size,createdTime,modifiedTime,thumbnailLink,webViewLink)');
+      url.searchParams.set('orderBy', 'createdTime desc');
+      url.searchParams.set('pageSize', String(pageSize));
+      if (req.query.pageToken) url.searchParams.set('pageToken', String(req.query.pageToken));
+
+      const response = await googleRequest(url.toString(), { accessToken });
+      const payload = await readJson(response);
+      res.json({ images: payload.files || [], nextPageToken: payload.nextPageToken || null });
+    } catch (err) {
+      console.error('Drive list images error:', err);
+      res.status(err.status || 500).json({ error: err.message || 'Không tải được danh sách ảnh.' });
+    }
+  });
+
+  app.post('/api/drive/images', authMiddleware, async (req, res) => {
+    try {
+      const { name, mimeType, data } = req.body;
+      if (!mimeType?.startsWith('image/')) return res.status(400).json({ error: 'Chỉ hỗ trợ file ảnh.' });
+      if (!data) return res.status(400).json({ error: 'Thiếu dữ liệu ảnh.' });
+
+      const imageBuffer = Buffer.from(data, 'base64');
+      if (imageBuffer.length === 0) return res.status(400).json({ error: 'Dữ liệu ảnh không hợp lệ.' });
+      if (imageBuffer.length > MAX_IMAGE_BYTES) return res.status(400).json({ error: 'Ảnh vượt quá giới hạn 8MB.' });
+
+      const { connection, accessToken } = await requireDriveConnection(req.user.id);
+      const imageFolderId = await ensureImageFolderForConnection(connection, accessToken);
+      const boundary = `dlock_${Date.now()}_${Math.random().toString(16).slice(2)}`;
+      const metadata = {
+        name: `${new Date().toISOString().replace(/[:.]/g, '-')}-${cleanFileName(name)}`,
+        mimeType,
+        parents: [imageFolderId],
+      };
+
+      const multipartBody = Buffer.concat([
+        Buffer.from(`--${boundary}\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n${JSON.stringify(metadata)}\r\n`),
+        Buffer.from(`--${boundary}\r\nContent-Type: ${mimeType}\r\n\r\n`),
+        imageBuffer,
+        Buffer.from(`\r\n--${boundary}--`),
+      ]);
+
+      const response = await googleRequest('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id,name,mimeType,size,createdTime,modifiedTime,thumbnailLink,webViewLink', {
+        accessToken,
+        method: 'POST',
+        headers: { 'Content-Type': `multipart/related; boundary=${boundary}` },
+        body: multipartBody,
+      });
+
+      res.status(201).json(await readJson(response));
+    } catch (err) {
+      console.error('Drive upload image error:', err);
+      res.status(err.status || 500).json({ error: err.message || 'Không upload được ảnh.' });
+    }
+  });
+
+  app.get('/api/drive/images/:fileId', authMiddleware, async (req, res) => {
+    try {
+      const { connection, accessToken } = await requireDriveConnection(req.user.id);
+      const imageFolderId = await ensureImageFolderForConnection(connection, accessToken);
+      const meta = await assertFileInImageFolder(accessToken, req.params.fileId, imageFolderId);
+      const response = await googleRequest(`https://www.googleapis.com/drive/v3/files/${encodeURIComponent(req.params.fileId)}?alt=media`, { accessToken });
+      const buffer = Buffer.from(await response.arrayBuffer());
+
+      res.setHeader('Content-Type', meta.mimeType || 'application/octet-stream');
+      res.setHeader('Cache-Control', 'private, max-age=300');
+      res.send(buffer);
+    } catch (err) {
+      console.error('Drive get image error:', err);
+      res.status(err.status || 500).json({ error: err.message || 'Không mở được ảnh.' });
+    }
+  });
+
+  app.delete('/api/drive/images/:fileId', authMiddleware, async (req, res) => {
+    try {
+      const { connection, accessToken } = await requireDriveConnection(req.user.id);
+      const imageFolderId = await ensureImageFolderForConnection(connection, accessToken);
+      await assertFileInImageFolder(accessToken, req.params.fileId, imageFolderId);
+      await googleRequest(`https://www.googleapis.com/drive/v3/files/${encodeURIComponent(req.params.fileId)}`, {
+        accessToken,
+        method: 'DELETE',
+      });
+      res.json({ deleted: true });
+    } catch (err) {
+      console.error('Drive delete image error:', err);
+      res.status(err.status || 500).json({ error: err.message || 'Không xóa được ảnh.' });
     }
   });
 };
